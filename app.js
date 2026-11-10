@@ -1,4 +1,4 @@
-window.AGORA_BUILD='34030bb266';
+window.AGORA_BUILD='7126f23ad1';
 /* ============================================================
    Analyse de la voix (signal) et du texte (transcription)
    Tout se calcule dans la page. Aucun audio n'est envoyé nulle part.
@@ -3486,7 +3486,9 @@ function srv(body) {
 }
 function devId() { var d = lsGet('ab_dev'); if (!d) { d = 'd' + Math.random().toString(36).slice(2, 10) + Date.now().toString(36); lsSet('ab_dev', d); } return d; }
 function gateEl() { var g = byIdEl('gate'); if (!g) { g = document.createElement('div'); g.id = 'gate'; g.className = 'lock gate'; g.setAttribute('role', 'dialog'); document.body.appendChild(g); } return g; }
-function gateClose() { var g = byIdEl('gate'); if (g && g.parentNode) g.parentNode.removeChild(g); }
+var gateTimer = null;
+function gatePoll(on) { if (gateTimer) { clearInterval(gateTimer); gateTimer = null; } if (on && lsGet('ab_tok')) gateTimer = setInterval(gateCheck, 8000); }
+function gateClose() { gatePoll(false); var g = byIdEl('gate'); if (g && g.parentNode) g.parentNode.removeChild(g); }
 function gateMsg(titre, texte, bouton) {
   var g = gateEl(); g.innerHTML = '';
   var b = document.createElement('div'); b.className = 'lockbox';
@@ -3544,7 +3546,7 @@ function gateWait(etat) {
 function gateResult(r) {
   if (r.etat === 'validé' && r.jeton) { lsSet('ab_tok', r.jeton); lsSet('ab_ok', '1'); gateClose(); try { avisCard(); } catch (e) {} return; }
   if (r.etat === 'validé') { gateClose(); return; }
-  if (r.etat === 'bloqué' || r.etat === 'expiré' || r.etat === 'autre appareil') return gateMsg('Une erreur est survenue', 'Veuillez vous reconnecter. Si le problème persiste, prévenez votre administrateur.', ['Me reconnecter', function () { gateForm('login'); }]);
+  if (r.etat === 'bloqué' || r.etat === 'expiré' || r.etat === 'autre appareil') { gatePoll(true); return gateMsg('Une erreur est survenue', 'Veuillez vous reconnecter. Si le problème persiste, prévenez votre administrateur.', ['Me reconnecter', function () { gateForm('login'); }]); }
   gateForm('demande');
 }
 function gateCheck() {
@@ -3563,6 +3565,8 @@ function gateInit() {
   if (!lsGet('ab_em') || !lsGet('ab_tok')) gateForm();
   else if (lsGet('ab_ok') !== '1') gateMsg('Vérification…', 'Un instant.');
   gateCheck();
+  setInterval(function () { if (document.visibilityState !== 'hidden' && lsGet('ab_tok')) gateCheck(); }, 60000);
+  document.addEventListener('visibilitychange', function () { if (document.visibilityState === 'visible' && lsGet('ab_tok')) gateCheck(); });
 }
 
 /* ---------- suivi des fonctions utilisées (envoyé à Stephen, testeur connecté seulement) ---------- */
