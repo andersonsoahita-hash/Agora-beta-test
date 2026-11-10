@@ -46,56 +46,36 @@ footer{margin:22px 0;color:var(--mut);font-size:13px;text-align:center}
 <body>
 <div class="w">
 <header><div class="lg">A</div><div><h1>Agora test · Suivi</h1><small>Réservé à Stephen · by Stephen</small></div></header>
-<div class="mock"><b>Maquette.</b> En attendant le serveur, le vrai interrupteur est le fichier <code>acces.json</code> du dépôt (voir le README). Les données ci-dessous restent dans ce navigateur. Quand le serveur sera relié, cette page lira et modifiera la vraie fiche du testeur dans ton Google Sheet.</div>
+<div class="card" id="login"><h2>Clé admin</h2><p class="mu" style="margin-top:0">Dans ton Google Sheet : menu <b>Agora test &gt; Afficher ma clé admin</b>, puis colle-la ici. Elle reste seulement dans ce navigateur.</p><label>Clé<input type="text" id="cle" autocomplete="off" autocapitalize="off"></label><div class="btns"><button class="ok" id="go">Voir le suivi</button></div><p class="mu" id="err" role="alert"></p></div>
 <div id="app"></div>
+<div class="card"><h2>Valider, bloquer, supprimer</h2><p class="mu" style="margin:0">Ces actions se font dans le Google Sheet : onglet <b>Comptes</b>, clique sur la ligne du testeur, puis menu <b>Agora test</b>. Le changement est pris en compte à sa prochaine ouverture de l’appli. Pour une date de fin, remplis la colonne <b>Expire le</b>.</p></div>
 <footer>Agora test · Suivi · by Stephen</footer>
 </div>
 <script>
 (function(){
-var K='agora_bete_suivi',S;
-function def(){return{name:'Ton associé',email:'associe@exemple.com',status:'attente',created:today(),validated:'',last:'',devices:0,sessions:0,exp:'',fb:[],log:[]}}
-function today(){return new Date().toISOString().slice(0,10)}
-try{S=JSON.parse(localStorage.getItem(K)||'null')}catch(e){}
-S=S||def();
-function save(){try{localStorage.setItem(K,JSON.stringify(S))}catch(e){}}
+var SRV="https://script.google.com/macros/s/AKfycbygZZYH-S2Ip1UM__LQB7IVFLzE67hJ4eNiQKwSxmW0inNk8V-Z-V5pdmPN0fMTqSHp/exec",K="agora_beta_cle";
 function esc(s){return String(s==null?'':s).replace(/[&<>"]/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]})}
-function log(a){S.log.unshift({d:new Date().toLocaleString('fr-FR'),a:a});S.log=S.log.slice(0,100);save()}
-function fd(d){if(!d)return '—';var p=d.split('-');return p.length===3?p[2]+'/'+p[1]+'/'+p[0]:d}
-var SURE=null;
-var BADGE={attente:['wt','En attente de validation'],actif:['ok','Actif'],bloque:['ko','Bloqué'],supprime:['ko','Supprimé'],expire:['wt','Accès expiré']};
-function exp(){return S.status==='actif'&&S.exp&&S.exp<today()}
-function view(){
-  var st=exp()?'expire':S.status,b=BADGE[st];
-  var h='<div class="card"><div class="row"><h2 style="margin:0">'+esc(S.name)+'</h2><span class="st '+b[0]+'">'+b[1]+'</span></div><p class="mu" style="margin:4px 0 0">'+esc(S.email)+' · demande du '+fd(S.created)+'</p>';
-  h+='<div class="kp" style="margin-top:14px"><div class="k"><span>Validé le</span><b>'+fd(S.validated)+'</b></div><div class="k"><span>Dernière connexion</span><b>'+(S.last?fd(S.last):'—')+'</b></div><div class="k"><span>Appareils</span><b>'+S.devices+'</b></div><div class="k"><span>Séances faites</span><b>'+S.sessions+'</b></div><div class="k"><span>Accès jusqu’au</span><b>'+(S.exp?fd(S.exp):'sans limite')+'</b></div></div>';
-  h+='<div class="btns">';
-  if(S.status==='attente')h+='<button class="ok" data-a="val">Valider et envoyer l’accès</button><button class="ko" data-a="ref">Refuser</button>';
-  if(S.status==='actif')h+='<button class="ko" data-a="blk">Bloquer</button>';
-  if(S.status==='bloque')h+='<button class="ok" data-a="unb">Débloquer</button>';
-  if(S.status==='supprime')h+='<button data-a="rst">Rouvrir une demande</button>';
-  else h+=(SURE==='del'?'<button class="sure" data-a="del">Confirmer la suppression</button>':'<button class="ko" data-a="del">Supprimer le compte</button>');
-  h+='</div>';
-  if(S.status==='bloque'||S.status==='supprime')h+='<p class="mu" style="margin-top:10px">Avec le serveur : le contenu n’est plus envoyé et, à sa prochaine connexion, l’appli efface ses données locales. Hors ligne, ce qu’il a déjà téléchargé reste sur son appareil jusqu’à cette connexion.</p>';
-  h+='</div>';
-  h+='<div class="card"><h2>Durée de l’accès</h2><p class="mu" style="margin-top:0">Un accès qui expire tout seul pousse à tout tester dans le délai. Laisse vide pour ne pas limiter.</p><label>Accès jusqu’au<input type="date" id="exp" value="'+esc(S.exp)+'"></label><div class="btns"><button data-a="setexp">Enregistrer la date</button></div></div>';
-  h+='<div class="card"><h2>Ses avis ('+S.fb.length+')</h2>'+(S.fb.length?'<div class="sc"><table><tr><th>Date</th><th>Écran</th><th>Avis</th></tr>'+S.fb.map(function(f){return '<tr><td>'+fd(f.d)+'</td><td>'+esc(f.s)+'</td><td>'+esc(f.t)+'</td></tr>'}).join('')+'</table></div>':'<p class="mu" style="margin:0">Aucun avis pour l’instant. Les avis écrits dans l’appli de test arriveront ici.</p>')+'</div>';
-  h+='<div class="card"><h2>Essayer la maquette</h2><p class="mu" style="margin-top:0">Pour voir la page vivre avant le serveur : simule une connexion ou un avis.</p><div class="btns"><button data-a="sim">Simuler une connexion et une séance</button><button data-a="simfb">Simuler un avis</button></div></div>';
-  h+='<div class="card"><h2>Journal</h2>'+(S.log.length?'<ul>'+S.log.map(function(l){return '<li>'+esc(l.d)+' — '+esc(l.a)+'</li>'}).join('')+'</ul>':'<p class="mu" style="margin:0">Rien pour l’instant.</p>')+'</div>';
-  document.getElementById('app').innerHTML=h;
+function fd(d){if(!d)return '—';var t=new Date(d);return isNaN(t)?esc(d):t.toLocaleDateString('fr-FR')+' '+t.toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'})}
+var B={'en attente':['wt','En attente'],'validé':['ok','Actif'],'bloqué':['ko','Bloqué'],'supprimé':['ko','Supprimé'],'expiré':['wt','Expiré']};
+function load(cle){
+  var err=document.getElementById('err');err.textContent='Chargement…';
+  fetch(SRV,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify({action:'liste',cle:cle})}).then(function(r){return r.json()}).then(function(r){
+    if(!r.ok){err.textContent=r.erreur||'Refusé.';try{localStorage.removeItem(K)}catch(e){}return}
+    try{localStorage.setItem(K,cle)}catch(e){}
+    err.textContent='';document.getElementById('login').style.display='none';draw(r)
+  }).catch(function(){err.textContent='Connexion impossible.'});
 }
-document.addEventListener('click',function(e){var b=e.target.closest('[data-a]');if(!b)return;var a=b.dataset.a;
-  if(a!=='del')SURE=null;
-  if(a==='val'){S.status='actif';S.validated=today();log('Accès validé, e-mail envoyé (simulation)')}
-  else if(a==='ref'){S.status='supprime';log('Demande refusée')}
-  else if(a==='blk'){S.status='bloque';log('Compte bloqué')}
-  else if(a==='unb'){S.status='actif';log('Compte débloqué')}
-  else if(a==='del'){if(SURE!=='del'){SURE='del';view();return}SURE=null;S.status='supprime';S.devices=0;log('Compte supprimé')}
-  else if(a==='rst'){S=def();S.log=[];log('Nouvelle demande')}
-  else if(a==='setexp'){S.exp=document.getElementById('exp').value;log(S.exp?'Accès limité au '+fd(S.exp):'Limite d’accès retirée')}
-  else if(a==='sim'){if(S.status!=='actif'){return}S.last=today();S.devices=Math.max(S.devices,1);S.sessions++;log('Connexion et séance (simulation)')}
-  else if(a==='simfb'){S.fb.unshift({d:today(),s:'Studio',t:'Le minuteur est difficile à voir sur petit écran (exemple).'});log('Avis reçu (simulation)')}
-  save();view()});
-view();
+function draw(r){
+  var c=r.comptes||[],a=r.avis||[];
+  var h='<div class="card"><h2>Comptes ('+c.length+')</h2>'+(c.length?'<div class="sc"><table><tr><th>Nom</th><th>E-mail</th><th>Statut</th><th>Dernière connexion</th><th>Fin d’accès</th></tr>'+c.map(function(x){var b=B[x.statut]||['wt',esc(x.statut)];return '<tr><td>'+esc(x.nom)+'</td><td>'+esc(x.email)+'</td><td><span class="st '+b[0]+'">'+b[1]+'</span></td><td>'+fd(x.derniere)+'</td><td>'+(x.expire?fd(x.expire).split(' ')[0]:'sans limite')+'</td></tr>'}).join('')+'</table></div>':'<p class="mu" style="margin:0">Aucune demande pour l’instant.</p>')+'</div>';
+  h+='<div class="card"><h2>Avis reçus ('+a.length+')</h2>'+(a.length?'<div class="sc"><table><tr><th>Date</th><th>Testeur</th><th>Écran</th><th>Avis</th></tr>'+a.slice().reverse().map(function(f){return '<tr><td>'+fd(f[0])+'</td><td>'+esc(f[1])+'</td><td>'+esc(f[2])+'</td><td>'+esc(f[3])+'</td></tr>'}).join('')+'</table></div>':'<p class="mu" style="margin:0">Aucun avis pour l’instant.</p>')+'</div>';
+  h+='<div class="btns"><button id="rf">Actualiser</button></div>';
+  document.getElementById('app').innerHTML=h;
+  document.getElementById('rf').onclick=function(){load(localStorage.getItem(K)||'')};
+}
+document.getElementById('go').onclick=function(){load(document.getElementById('cle').value.trim())};
+var k='';try{k=localStorage.getItem(K)||''}catch(e){}
+if(k)load(k);
 })();
 </script>
 </body>

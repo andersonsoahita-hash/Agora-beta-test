@@ -412,6 +412,7 @@ function vSettings() {
   return h + '</div>';
 }
 function fillSettings() {
+  avisCard();
   var s = byIdEl('stoInfo');
   if (s) {
     var txt = function (u, q, rs, rc) { s.innerHTML = 'Espace utilisé : <b>' + fmtBytes(u) + '</b>' + (q ? ' sur ' + fmtBytes(q) + ' disponibles' : '') + ' · enregistrements : <b>' + rc + '</b> (' + fmtBytes(rs) + ') · protection : <b>' + (pwa.persisted === true || lsGet('ab_persist') === '1' ? 'oui' : pwa.persisted === false ? 'non accordée' : 'inconnue') + '</b>'; };
@@ -462,6 +463,7 @@ function pwaAct(act, v, el, ev) {
     case 'install': if (pwa.installEvt) { pwa.installEvt.prompt(); pwa.installEvt.userChoice.then(function () { pwa.installEvt = null; render(); }); } return true;
     case 'inst-hide': lsSet('ab_inst_dismiss', '1'); render(); return true;
     case 'bk-later': lsSet('ab_bk_dismiss', today()); render(); return true;
+    case 'avis-send': avisSend(); return true;
     case 'update-check': swCheck(); return true;
     case 'update-now': swApply(); return true;
     case 'export-data': exportState(); if (view.tab === 'home' || view.tab === 'settings') setTimeout(render, 50); return true;
@@ -558,6 +560,92 @@ function showLock(msg) {
   var q = document.createElement('p'); q.className = 'small'; q.textContent = 'Tes données restent sur ton téléphone et ne sont pas supprimées.';
   b.appendChild(h); b.appendChild(p); b.appendChild(q); d.appendChild(b); document.body.appendChild(d);
 }
+
+/* ---------- accès sur demande (serveur Google Sheet) ---------- */
+var SRV = 'https://script.google.com/macros/s/AKfycbygZZYH-S2Ip1UM__LQB7IVFLzE67hJ4eNiQKwSxmW0inNk8V-Z-V5pdmPN0fMTqSHp/exec';
+function srv(body) {
+  return fetch(SRV, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify(body) }).then(function (r) { return r.json(); });
+}
+function devId() { var d = lsGet('ab_dev'); if (!d) { d = 'd' + Math.random().toString(36).slice(2, 10) + Date.now().toString(36); lsSet('ab_dev', d); } return d; }
+function gateEl() { var g = byIdEl('gate'); if (!g) { g = document.createElement('div'); g.id = 'gate'; g.className = 'lock gate'; g.setAttribute('role', 'dialog'); document.body.appendChild(g); } return g; }
+function gateClose() { var g = byIdEl('gate'); if (g && g.parentNode) g.parentNode.removeChild(g); }
+function gateMsg(titre, texte, extra) {
+  var g = gateEl(); g.innerHTML = '';
+  var b = document.createElement('div'); b.className = 'lockbox';
+  var h = document.createElement('h2'); h.textContent = titre; var p = document.createElement('p'); p.textContent = texte;
+  b.appendChild(h); b.appendChild(p); if (extra) b.appendChild(extra);
+  var q = document.createElement('p'); q.className = 'small'; q.textContent = 'Agora test · by Stephen'; b.appendChild(q); g.appendChild(b);
+}
+function gateWipe() {
+  try { Object.keys(localStorage).forEach(function (k) { if (k.indexOf('ab_') === 0 || k === LS) localStorage.removeItem(k); }); } catch (e) {}
+  try { indexedDB.deleteDatabase('agora_b_db'); } catch (e) {}
+}
+function gateForm() {
+  var g = gateEl(); g.innerHTML = '';
+  var b = document.createElement('div'); b.className = 'lockbox gbox';
+  b.innerHTML = '<h2>Demander mon accès</h2><p>Agora test est en accès sur invitation. Remplis ce formulaire : Stephen valide ta demande puis t’envoie ton lien personnel par e-mail.</p>'
+    + '<form id="gForm" autocomplete="on"><label>Nom<input type="text" id="gNom" required maxlength="60" autocomplete="family-name"></label>'
+    + '<label>Prénoms<input type="text" id="gPre" required maxlength="80" autocomplete="given-name"></label>'
+    + '<label>Âge<input type="number" id="gAge" inputmode="numeric" min="10" max="99"></label>'
+    + '<label>Téléphone<input type="text" id="gTel" inputmode="tel" maxlength="30" autocomplete="tel"></label>'
+    + '<label>E-mail<input type="text" id="gMail" required inputmode="email" maxlength="80" autocomplete="email"></label>'
+    + '<button class="btn" type="submit" id="gGo">Envoyer ma demande</button><p class="small" id="gErr" role="alert"></p></form>'
+    + '<p class="small">Un seul appareil par compte. Agora test · by Stephen</p>';
+  g.appendChild(b);
+  byIdEl('gForm').onsubmit = function (ev) {
+    ev.preventDefault();
+    var em = byIdEl('gMail').value.trim().toLowerCase(), err = byIdEl('gErr');
+    if (!/^\S+@\S+\.\S+$/.test(em)) { err.textContent = 'Adresse e-mail invalide.'; return; }
+    var btn = byIdEl('gGo'); btn.disabled = true; btn.textContent = 'Envoi…'; err.textContent = '';
+    srv({ action: 'demande', nom: byIdEl('gNom').value.trim(), prenoms: byIdEl('gPre').value.trim(), age: byIdEl('gAge').value, tel: byIdEl('gTel').value.trim(), email: em })
+      .then(function (r) {
+        if (!r || !r.ok) { err.textContent = (r && r.erreur) || 'Demande refusée.'; btn.disabled = false; btn.textContent = 'Envoyer ma demande'; return; }
+        lsSet('ab_req', em); gateWait(r.etat);
+      }).catch(function () { err.textContent = 'Connexion impossible. Vérifie ton réseau et réessaie.'; btn.disabled = false; btn.textContent = 'Envoyer ma demande'; });
+  };
+}
+function gateWait(etat) {
+  var txt = etat === 'bloqué' ? 'Ce compte est bloqué. Contacte Stephen.' : etat === 'validé' ? 'Ta demande est déjà validée : ouvre le lien reçu par e-mail.' : 'Ta demande est envoyée. Dès que Stephen l’aura validée, tu recevras un e-mail avec ton lien personnel. Ouvre ce lien sur l’appareil que tu utiliseras.';
+  gateMsg('Demande envoyée', txt);
+}
+function gateCheck() {
+  var code = lsGet('ab_code');
+  if (!code) { var rq = lsGet('ab_req'); if (rq) gateWait('en attente'); else gateForm(); return; }
+  if (navigator.onLine === false && lsGet('ab_ok') === '1') return;
+  srv({ action: 'etat', code: code, appareil: devId() }).then(function (r) {
+    if (!r || !r.ok) { if (lsGet('ab_ok') === '1') return; gateMsg('Connexion impossible', 'Réessaie dans un instant.'); return; }
+    if (r.etat === 'validé') { lsSet('ab_ok', '1'); gateClose(); return; }
+    if (r.etat === 'supprimé' || r.etat === 'inconnu') { gateWipe(); gateForm(); return; }
+    if (r.etat === 'bloqué') { gateMsg('Accès suspendu', 'Ton accès a été suspendu par Stephen. Tes données restent sur ton appareil.'); return; }
+    if (r.etat === 'expiré') { gateMsg('Période de test terminée', 'Merci d’avoir testé Agora ! L’accès est arrivé à son terme.'); return; }
+    if (r.etat === 'autre appareil') { gateMsg('Déjà utilisé sur un autre appareil', 'Ce compte est lié à un seul appareil. Demande à Stephen de le réinitialiser.'); return; }
+    gateWait(r.etat);
+  }).catch(function () { if (lsGet('ab_ok') === '1') return; gateMsg('Connexion impossible', 'Vérifie ton réseau puis recharge la page.'); });
+}
+function gateInit() {
+  try {
+    var m = /[?&]c=([A-Za-z0-9]{8,40})/.exec(location.search);
+    if (m) { var old = lsGet('ab_code'); if (old && old !== m[1]) gateWipe(); lsSet('ab_code', m[1]); try { history.replaceState(null, '', location.pathname); } catch (e) {} }
+  } catch (e) {}
+  if (!lsGet('ab_code') && !lsGet('ab_req')) gateForm(); /* affiché tout de suite, avant tout réseau */
+  else if (!lsGet('ab_ok')) gateMsg('Vérification…', 'Un instant.');
+  gateCheck();
+}
+function avisCard() {
+  var s = byIdEl('stoInfo'), c = s && s.closest ? s.closest('.card') : null;
+  if (!c || byIdEl('avisCard') || !lsGet('ab_code')) return;
+  var d = document.createElement('div'); d.className = 'card'; d.id = 'avisCard';
+  d.innerHTML = '<h3>Donner mon avis</h3><p class="small">Ce qui est confus, ce qui manque, ce qui te plaît : écris-le ici, Stephen le reçoit directement.</p>'
+    + '<textarea id="avisTxt" maxlength="1500" placeholder="Ton avis sur Agora…"></textarea><div style="margin-top:10px"><button class="btn" data-act="avis-send" type="button">Envoyer mon avis</button> <span class="small" id="avisMsg"></span></div>';
+  c.parentNode.insertBefore(d, c.nextSibling);
+}
+function avisSend() {
+  var t = byIdEl('avisTxt'), m = byIdEl('avisMsg'); if (!t || !t.value.trim()) return;
+  m.textContent = 'Envoi…';
+  srv({ action: 'avis', code: lsGet('ab_code'), ecran: (view && view.tab) || '', texte: t.value.trim() })
+    .then(function (r) { if (r && r.ok) { t.value = ''; m.textContent = 'Merci, avis envoyé.'; } else m.textContent = 'Envoi refusé.'; })
+    .catch(function () { m.textContent = 'Connexion impossible, réessaie.'; });
+}
 function pwaBoot() {
   applyTheme(themePref());
   if (!S.since) { S.since = Date.now(); persist(); }
@@ -566,6 +654,7 @@ function pwaBoot() {
   window.addEventListener('appinstalled', function () { pwa.installEvt = null; render(); });
   trashPurge(); setInterval(trashPurge, 3600000);
   swInit();
+  gateInit();
   var cv = byIdEl('cover');
   if (cv) {
     var seen = false; try { seen = sessionStorage.getItem('ab_cover') === '1'; } catch (e) {}
