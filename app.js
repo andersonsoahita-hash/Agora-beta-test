@@ -1,4 +1,4 @@
-window.AGORA_BUILD='7126f23ad1';
+window.AGORA_BUILD='dccae8fedf';
 /* ============================================================
    Analyse de la voix (signal) et du texte (transcription)
    Tout se calcule dans la page. Aucun audio n'est envoyé nulle part.
@@ -3565,7 +3565,7 @@ function gateInit() {
   if (!lsGet('ab_em') || !lsGet('ab_tok')) gateForm();
   else if (lsGet('ab_ok') !== '1') gateMsg('Vérification…', 'Un instant.');
   gateCheck();
-  setInterval(function () { if (document.visibilityState !== 'hidden' && lsGet('ab_tok')) gateCheck(); }, 60000);
+  setInterval(function () { if (document.visibilityState !== 'hidden' && lsGet('ab_tok')) gateCheck(); }, 15000);
   document.addEventListener('visibilitychange', function () { if (document.visibilityState === 'visible' && lsGet('ab_tok')) gateCheck(); });
 }
 
