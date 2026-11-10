@@ -648,7 +648,7 @@ function gateInit() {
   else if (lsGet('ab_ok') !== '1') gateMsg('Vérification…', 'Un instant.');
   gateCheck();
   setInterval(function () { if (document.visibilityState !== 'hidden' && lsGet('ab_tok')) gateCheck(); }, 15000);
-  document.addEventListener('visibilitychange', function () { if (document.visibilityState === 'visible' && lsGet('ab_tok')) gateCheck(); });
+  document.addEventListener('visibilitychange', function () { if (document.visibilityState === 'visible') { try { if (pwa.swReg && navigator.onLine !== false) pwa.swReg.update().catch(function () {}); } catch (e) {} pwa.updDismissed = false; if (lsGet('ab_tok')) gateCheck(); } });
 }
 
 /* ---------- suivi des fonctions utilisées (envoyé à Stephen, testeur connecté seulement) ---------- */
