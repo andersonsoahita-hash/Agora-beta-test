@@ -63,6 +63,25 @@ function etat_(v) {
   if (st === 'validé' && v[8] && new Date(v[8]) < new Date(new Date().toDateString())) return 'expiré';
   return st;
 }
+
+/* ---------- actions admin (depuis la page de suivi, avec la clé) ---------- */
+function agir_(op, email, date) {
+  var t = trouver_(3, email); if (!t) return { ok: false, erreur: 'Compte introuvable' };
+  var sh = t.sh, r = t.r, v = t.v;
+  if (op === 'valider') {
+    var code = v[7] || code_();
+    sh.getRange(r, 7).setValue('validé'); sh.getRange(r, 8).setValue(code);
+    MailApp.sendEmail({ to: v[3], subject: 'Ton accès à Agora (test)',
+      body: 'Bonjour ' + v[2] + ',\n\nTa demande est validée. Ouvre ce lien sur ton téléphone ou ton ordinateur (un seul appareil par compte) :\n' + APP_URL + '?c=' + code + '\n\nCe lien est personnel : ne le partage pas.\n\nStephen' });
+    journal_('Accès validé et envoyé à ' + v[3]);
+  } else if (op === 'bloquer') { sh.getRange(r, 7).setValue('bloqué'); journal_('Bloqué : ' + v[3]); }
+  else if (op === 'debloquer') { sh.getRange(r, 7).setValue('validé'); journal_('Débloqué : ' + v[3]); }
+  else if (op === 'supprimer') { sh.getRange(r, 7).setValue('supprimé'); sh.getRange(r, 8).setValue(''); sh.getRange(r, 12).setValue(''); journal_('Supprimé : ' + v[3]); }
+  else if (op === 'appareil') { sh.getRange(r, 12).setValue(''); journal_('Appareil réinitialisé : ' + v[3]); }
+  else if (op === 'expire') { sh.getRange(r, 9).setValue(date || ''); journal_('Fin d’accès ' + (date || 'retirée') + ' : ' + v[3]); }
+  else return { ok: false, erreur: 'Action inconnue' };
+  return { ok: true };
+}
 function doPost(e) {
   var lock = LockService.getScriptLock(); lock.waitLock(20000);
   try {
@@ -99,6 +118,10 @@ function doPost(e) {
       var sh = feuille_('Comptes'), n = sh.getLastRow(), d = n > 1 ? sh.getRange(2, 1, n - 1, 12).getValues() : [];
       var sa = feuille_('Avis'), na = sa.getLastRow(), da = na > 1 ? sa.getRange(2, 1, na - 1, 4).getValues() : [];
       return rep_({ ok: true, comptes: d.map(function (x) { return { nom: x[1] + ' ' + x[2], email: x[3], statut: etat_(x), derniere: x[9], seances: x[10], expire: x[8] }; }), avis: da });
+    }
+    if (a === 'admin') {
+      if (b.cle !== PropertiesService.getScriptProperties().getProperty('CLE_ADMIN')) return rep_({ ok: false, erreur: 'Clé invalide' });
+      return rep_(agir_(b.op, String(b.email || '').toLowerCase(), b.date));
     }
     return rep_({ ok: false, erreur: 'Action inconnue' });
   } catch (err) { return rep_({ ok: false, erreur: String(err) }); }
