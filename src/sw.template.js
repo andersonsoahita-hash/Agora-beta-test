@@ -2,6 +2,7 @@
 const CACHE = 'abeta-@@HASH@@';
 const FILES = @@FILES@@;
 self.addEventListener('install', e => {
+  self.skipWaiting(); /* prend la main tout de suite : corrige aussi les anciens navigateurs */
   e.waitUntil(caches.open(CACHE).then(c => Promise.all(FILES.map(f => c.add(new Request(f, { cache: 'reload' }))))));
 });
 self.addEventListener('message', e => { if (e.data && e.data.type === 'SKIP_WAITING') self.skipWaiting(); });
