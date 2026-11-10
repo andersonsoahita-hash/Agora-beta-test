@@ -568,6 +568,7 @@ function srv(body) {
 }
 function devId() { var d = lsGet('ab_dev'); if (!d) { d = 'd' + Math.random().toString(36).slice(2, 10) + Date.now().toString(36); lsSet('ab_dev', d); } return d; }
 function gateEl() { var g = byIdEl('gate'); if (!g) { g = document.createElement('div'); g.id = 'gate'; g.className = 'lock gate'; g.setAttribute('role', 'dialog'); document.body.appendChild(g); } return g; }
+function whoName() { var n = String(lsGet('ab_pre') || '').trim().split(/\s+/)[0]; return n ? ', ' + n.replace(/[<>&"']/g, '') : ''; }
 var gateTimer = null;
 function gatePoll(on) { if (gateTimer) { clearInterval(gateTimer); gateTimer = null; } if (on && lsGet('ab_tok')) gateTimer = setInterval(gateCheck, 8000); }
 function gateClose() { gatePoll(false); var g = byIdEl('gate'); if (g && g.parentNode) g.parentNode.removeChild(g); }
@@ -626,6 +627,7 @@ function gateWait(etat) {
   gateMsg('Demande envoyée', txt, [['J’ai un code d’activation', function () { gateForm('code'); }], ['Me reconnecter', function () { gateForm('login'); }]]);
 }
 function gateResult(r) {
+  if (r && r.prenoms) lsSet('ab_pre', r.prenoms);
   if (r.etat === 'validé' && r.jeton) { lsSet('ab_tok', r.jeton); lsSet('ab_ok', '1'); gateClose(); try { avisCard(); } catch (e) {} return; }
   if (r.etat === 'validé') { gateClose(); return; }
   if (r.etat === 'bloqué' || r.etat === 'expiré' || r.etat === 'autre appareil') { gatePoll(true); return gateMsg('Une erreur est survenue', 'Veuillez vous reconnecter. Si le problème persiste, prévenez votre administrateur.', ['Me reconnecter', function () { gateForm('login'); }]); }
@@ -637,7 +639,7 @@ function gateCheck() {
   if (navigator.onLine === false && lsGet('ab_ok') === '1') return;
   srv({ action: 'etat', email: em, jeton: tok, appareil: devId() }).then(function (r) {
     if (!r || !r.ok) { if (lsGet('ab_ok') === '1') return; gateMsg('Connexion impossible', 'Réessaie dans un instant.'); return; }
-    if (r.etat === 'validé') { lsSet('ab_ok', '1'); gateClose(); return; }
+    if (r.etat === 'validé') { lsSet('ab_ok', '1'); if (r.prenoms && lsGet('ab_pre') !== r.prenoms) { lsSet('ab_pre', r.prenoms); try { render(); } catch (e) {} } gateClose(); return; }
     if (r.etat === 'supprimé' || r.etat === 'inconnu') { gateWipe(); gateForm('demande'); return; }
     if (r.etat === 'session') { lsSet('ab_tok', ''); gateForm('login'); return; }
     gateResult(r);

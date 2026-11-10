@@ -1,4 +1,4 @@
-window.AGORA_BUILD='ae38bfcc41';
+window.AGORA_BUILD='2be1203a8f';
 /* ============================================================
    Analyse de la voix (signal) et du texte (transcription)
    Tout se calcule dans la page. Aucun audio n'est envoyé nulle part.
@@ -3486,6 +3486,7 @@ function srv(body) {
 }
 function devId() { var d = lsGet('ab_dev'); if (!d) { d = 'd' + Math.random().toString(36).slice(2, 10) + Date.now().toString(36); lsSet('ab_dev', d); } return d; }
 function gateEl() { var g = byIdEl('gate'); if (!g) { g = document.createElement('div'); g.id = 'gate'; g.className = 'lock gate'; g.setAttribute('role', 'dialog'); document.body.appendChild(g); } return g; }
+function whoName() { var n = String(lsGet('ab_pre') || '').trim().split(/\s+/)[0]; return n ? ', ' + n.replace(/[<>&"']/g, '') : ''; }
 var gateTimer = null;
 function gatePoll(on) { if (gateTimer) { clearInterval(gateTimer); gateTimer = null; } if (on && lsGet('ab_tok')) gateTimer = setInterval(gateCheck, 8000); }
 function gateClose() { gatePoll(false); var g = byIdEl('gate'); if (g && g.parentNode) g.parentNode.removeChild(g); }
@@ -3544,6 +3545,7 @@ function gateWait(etat) {
   gateMsg('Demande envoyée', txt, [['J’ai un code d’activation', function () { gateForm('code'); }], ['Me reconnecter', function () { gateForm('login'); }]]);
 }
 function gateResult(r) {
+  if (r && r.prenoms) lsSet('ab_pre', r.prenoms);
   if (r.etat === 'validé' && r.jeton) { lsSet('ab_tok', r.jeton); lsSet('ab_ok', '1'); gateClose(); try { avisCard(); } catch (e) {} return; }
   if (r.etat === 'validé') { gateClose(); return; }
   if (r.etat === 'bloqué' || r.etat === 'expiré' || r.etat === 'autre appareil') { gatePoll(true); return gateMsg('Une erreur est survenue', 'Veuillez vous reconnecter. Si le problème persiste, prévenez votre administrateur.', ['Me reconnecter', function () { gateForm('login'); }]); }
@@ -3555,7 +3557,7 @@ function gateCheck() {
   if (navigator.onLine === false && lsGet('ab_ok') === '1') return;
   srv({ action: 'etat', email: em, jeton: tok, appareil: devId() }).then(function (r) {
     if (!r || !r.ok) { if (lsGet('ab_ok') === '1') return; gateMsg('Connexion impossible', 'Réessaie dans un instant.'); return; }
-    if (r.etat === 'validé') { lsSet('ab_ok', '1'); gateClose(); return; }
+    if (r.etat === 'validé') { lsSet('ab_ok', '1'); if (r.prenoms && lsGet('ab_pre') !== r.prenoms) { lsSet('ab_pre', r.prenoms); try { render(); } catch (e) {} } gateClose(); return; }
     if (r.etat === 'supprimé' || r.etat === 'inconnu') { gateWipe(); gateForm('demande'); return; }
     if (r.etat === 'session') { lsSet('ab_tok', ''); gateForm('login'); return; }
     gateResult(r);
@@ -3689,7 +3691,7 @@ function adviceList(sig, txt) {
 function vHome() {
   var r = recommend(), last = S.sessions[0];
   var doneN = D.lessons.filter(function (l) { return S.done[l.id]; }).length, total = D.lessons.length;
-  var h = '<div class="brand"><span class="logo">'+LOGO+'</span><div><b>Agora</b><span>L’art oratoire · <i>by Stephen</i></span></div><button class="gear" data-act="settings" aria-label="Réglages"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg></button></div><div class="top"><div><h1>Bonjour, Stephen</h1></div><div class="pill">' + streak() + ' j · ' + S.xp + ' pts</div></div>';
+  var h = '<div class="brand"><span class="logo">'+LOGO+'</span><div><b>Agora</b><span>L’art oratoire · <i>by Stephen</i></span></div><button class="gear" data-act="settings" aria-label="Réglages"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg></button></div><div class="top"><div><h1>Bonjour' + whoName() + '</h1></div><div class="pill">' + streak() + ' j · ' + S.xp + ' pts</div></div>';
   h += '<div class="stack">';
   h += homeBanners();
   h += '<button class="card tap" data-act="reco" data-v="' + esc(JSON.stringify(r.go)) + '"><div class="eyebrow">Prochaine étape</div><h3>' + esc(r.t) + '</h3><p class="muted small" style="margin:6px 0 0">' + esc(r.d) + '</p></button>';
