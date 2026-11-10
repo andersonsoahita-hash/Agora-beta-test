@@ -574,7 +574,7 @@ function gateMsg(titre, texte, bouton) {
   var b = document.createElement('div'); b.className = 'lockbox';
   var h = document.createElement('h2'); h.textContent = titre; var p = document.createElement('p'); p.textContent = texte;
   b.appendChild(h); b.appendChild(p);
-  if (bouton) { var bt = document.createElement('button'); bt.className = 'btn'; bt.type = 'button'; bt.textContent = bouton[0]; bt.onclick = bouton[1]; b.appendChild(bt); }
+  (bouton ? (Array.isArray(bouton[0]) ? bouton : [bouton]) : []).forEach(function (x) { var bt = document.createElement('button'); bt.className = 'btn' + (b.querySelector('.btn') ? ' ghost' : ''); bt.type = 'button'; bt.style.marginTop = '10px'; bt.textContent = x[0]; bt.onclick = x[1]; b.appendChild(bt); });
   var q = document.createElement('p'); q.className = 'small'; q.textContent = 'Agora test · by Stephen'; b.appendChild(q); g.appendChild(b);
 }
 function gateWipe() {
@@ -619,7 +619,7 @@ function gateSubmit(mode) {
 }
 function gateWait(etat) {
   var txt = etat === 'bloqué' ? 'Ce compte est bloqué. Contacte Stephen.' : etat === 'validé' ? 'Ta demande est déjà validée : regarde ton e-mail, puis choisis « J’ai un code ».' : 'Ta demande est envoyée. Dès que Stephen l’aura validée, tu recevras un code d’activation par e-mail. Reviens alors ici et choisis « J’ai un code ».';
-  gateMsg('Demande envoyée', txt, ['J’ai déjà un code', function () { gateForm('code'); }]);
+  gateMsg('Demande envoyée', txt, [['J’ai un code d’activation', function () { gateForm('code'); }], ['Me reconnecter', function () { gateForm('login'); }]]);
 }
 function gateResult(r) {
   if (r.etat === 'validé' && r.jeton) { lsSet('ab_tok', r.jeton); lsSet('ab_ok', '1'); gateClose(); try { avisCard(); } catch (e) {} return; }
