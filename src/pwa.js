@@ -556,8 +556,8 @@ function swApply() {
 function showLock(msg) {
   var d = document.createElement('div'); d.className = 'lock'; d.setAttribute('role', 'alertdialog');
   var b = document.createElement('div'); b.className = 'lockbox';
-  var h = document.createElement('h2'); h.textContent = 'Accès suspendu'; var p = document.createElement('p'); p.textContent = msg || 'Cette appli est momentanément désactivée.';
-  var q = document.createElement('p'); q.className = 'small'; q.textContent = 'Tes données restent sur ton téléphone et ne sont pas supprimées.';
+  var h = document.createElement('h2'); h.textContent = 'Une erreur est survenue'; var p = document.createElement('p'); p.textContent = 'Veuillez vous reconnecter. Si le problème persiste, prévenez votre administrateur.';
+  var q = document.createElement('p'); q.className = 'small'; q.textContent = 'Agora test · by Stephen';
   b.appendChild(h); b.appendChild(p); b.appendChild(q); d.appendChild(b); document.body.appendChild(d);
 }
 
@@ -620,15 +620,13 @@ function gateSubmit(mode) {
   }).catch(function () { btn.disabled = false; btn.textContent = lab; err.textContent = 'Connexion impossible. Vérifie ton réseau et réessaie.'; });
 }
 function gateWait(etat) {
-  var txt = etat === 'bloqué' ? 'Ce compte est bloqué. Contacte Stephen.' : etat === 'validé' ? 'Ta demande est déjà validée : regarde ton e-mail, puis choisis « J’ai un code ».' : 'Ta demande est envoyée. Dès que Stephen l’aura validée, tu recevras un code d’activation par e-mail. Reviens alors ici et choisis « J’ai un code ».';
+  var txt = etat === 'validé' ? 'Ta demande est déjà validée : regarde ton e-mail, puis choisis « J’ai un code ».' : 'Ta demande est envoyée. Dès que Stephen l’aura validée, tu recevras un code d’activation par e-mail. Reviens alors ici et choisis « J’ai un code ».';
   gateMsg('Demande envoyée', txt, [['J’ai un code d’activation', function () { gateForm('code'); }], ['Me reconnecter', function () { gateForm('login'); }]]);
 }
 function gateResult(r) {
   if (r.etat === 'validé' && r.jeton) { lsSet('ab_tok', r.jeton); lsSet('ab_ok', '1'); gateClose(); try { avisCard(); } catch (e) {} return; }
   if (r.etat === 'validé') { gateClose(); return; }
-  if (r.etat === 'bloqué') return gateMsg('Accès suspendu', 'Ton accès a été suspendu par Stephen. Tes données restent sur ton appareil.');
-  if (r.etat === 'expiré') return gateMsg('Période de test terminée', 'Merci d’avoir testé Agora ! L’accès est arrivé à son terme.');
-  if (r.etat === 'autre appareil') return gateMsg('Déjà utilisé sur un autre appareil', 'Ce compte est lié à un seul appareil. Demande à Stephen de le réinitialiser.');
+  if (r.etat === 'bloqué' || r.etat === 'expiré' || r.etat === 'autre appareil') return gateMsg('Une erreur est survenue', 'Veuillez vous reconnecter. Si le problème persiste, prévenez votre administrateur.', ['Me reconnecter', function () { gateForm('login'); }]);
   gateForm('demande');
 }
 function gateCheck() {
