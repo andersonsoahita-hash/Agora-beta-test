@@ -4,7 +4,8 @@
 var FEUILLES = {
   comptes: ['Date', 'Nom', 'Prénoms', 'Email', 'Téléphone', 'Âge', 'Statut', 'Code d’activation', 'Expire le', 'Dernière connexion', 'Séances', 'Appareil', 'Mot de passe (empreinte)', 'Session'],
   avis: ['Date', 'Email', 'Écran', 'Avis'],
-  journal: ['Date', 'Action']
+  journal: ['Date', 'Action'],
+  usage: ['Date', 'Email', 'Fonction']
 };
 var NCOL = 14;
 var APP_URL = 'https://andersonsoahita-hash.github.io/Agora-beta-test/'; // adresse de l'appli de test
@@ -16,7 +17,7 @@ function feuille_(nom) {
   return sh;
 }
 function installer() { // à lancer une fois : crée les onglets
-  ['Comptes', 'Avis', 'Journal'].forEach(feuille_);
+  ['Comptes', 'Avis', 'Journal', 'Usage'].forEach(feuille_);
   var s = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Feuille 1'); if (s && s.getLastRow() === 0) s.setName('Notes');
   if (!PropertiesService.getScriptProperties().getProperty('CLE_ADMIN')) PropertiesService.getScriptProperties().setProperty('CLE_ADMIN', Utilities.getUuid());
 }
@@ -80,6 +81,12 @@ function agir_(op, email, date) {
   else if (op === 'supprimer') { sh.getRange(r, 7).setValue('supprimé'); [8, 12, 13, 14].forEach(function (c) { sh.getRange(r, c).setValue(''); }); journal_('Supprimé : ' + v[3]); }
   else if (op === 'appareil') { sh.getRange(r, 12).setValue(''); sh.getRange(r, 14).setValue(''); journal_('Appareil réinitialisé : ' + v[3]); }
   else if (op === 'expire') { sh.getRange(r, 9).setValue(date || ''); journal_('Fin d’accès ' + (date || 'retirée') + ' : ' + v[3]); }
+  else if (op === 'effacer') { // suppression définitive : la ligne et son suivi disparaissent (ses avis sont gardés)
+    sh.deleteRow(r);
+    var su = feuille_('Usage'), nu = su.getLastRow();
+    if (nu > 1) { var du = su.getRange(2, 1, nu - 1, 3).getValues(); for (var i = du.length - 1; i >= 0; i--) if (String(du[i][1]).toLowerCase() === String(v[3]).toLowerCase()) su.deleteRow(i + 2); }
+    journal_('Compte effacé définitivement : ' + v[3]);
+  }
   else return { ok: false, erreur: 'Action inconnue' };
   return { ok: true };
 }
@@ -142,12 +149,21 @@ function doPost(e) {
       return rep_({ ok: true });
     }
 
+    if (a === 'usage') { // le testeur envoie les fonctions qu'il a utilisées
+      var q = trouver_(3, em); if (!q || etat_(q.v) !== 'validé' || q.v[13] !== b.jeton) return rep_({ ok: false });
+      var evs = (b.events || []).slice(0, 300).map(function (x) { return [new Date(+x.t || Date.now()), em, String(x.e || '').slice(0, 80)]; });
+      if (evs.length) { var su2 = feuille_('Usage'); su2.getRange(su2.getLastRow() + 1, 1, evs.length, 3).setValues(evs); }
+      return rep_({ ok: true });
+    }
+
     if (a === 'liste') {
       if (!admin_(b)) return rep_({ ok: false, erreur: 'Clé invalide' });
       var sh = feuille_('Comptes'), n = sh.getLastRow(), d = n > 1 ? sh.getRange(2, 1, n - 1, NCOL).getValues() : [];
       var sa = feuille_('Avis'), na = sa.getLastRow(), da = na > 1 ? sa.getRange(2, 1, na - 1, 4).getValues() : [];
       var sj = feuille_('Journal'), nj = sj.getLastRow(), dj = nj > 1 ? sj.getRange(Math.max(2, nj - 39), 1, Math.min(40, nj - 1), 2).getValues() : [];
-      return rep_({ ok: true,
+      var su3 = feuille_('Usage'), nu3 = su3.getLastRow(), du3 = nu3 > 1 ? su3.getRange(Math.max(2, nu3 - 4999), 1, Math.min(5000, nu3 - 1), 3).getValues() : [], usage = {};
+      du3.forEach(function (x) { var m = String(x[1]).toLowerCase(), f = String(x[2]); usage[m] = usage[m] || {}; usage[m][f] = (usage[m][f] || 0) + 1; });
+      return rep_({ ok: true, usage: usage,
         comptes: d.map(function (x) { return { nom: x[1] + ' ' + x[2], email: x[3], tel: x[4], age: x[5], demande: x[0], statut: etat_(x), derniere: x[9], expire: x[8], appareil: !!x[11], active: !!x[12], code: !!x[7] }; }),
         avis: da, journal: dj });
     }

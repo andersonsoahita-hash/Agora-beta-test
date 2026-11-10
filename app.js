@@ -1,4 +1,4 @@
-window.AGORA_BUILD='781036b7ff';
+window.AGORA_BUILD='99298c8d2c';
 /* ============================================================
    Analyse de la voix (signal) et du texte (transcription)
    Tout se calcule dans la page. Aucun audio n'est envoyé nulle part.
@@ -3515,6 +3515,8 @@ function gateForm(mode) {
   var inputs = F.f.map(function (f) { return '<label>' + f[0] + '<input id="' + f[1] + '" type="' + f[2] + '"' + (f[2] === 'number' ? ' inputmode="numeric" min="10" max="99"' : f[2] === 'tel' ? ' inputmode="tel"' : '') + (f[3] ? ' autocomplete="' + f[3] + '"' : '') + ' maxlength="80"' + (f[1] === 'gTel' || f[1] === 'gAge' ? '' : ' required') + ' autocapitalize="off"></label>'; }).join('');
   b.innerHTML = '<div class="gtabs">' + tabs + '</div><h2>' + F.t + '</h2><p>' + F.d + '</p><form id="gForm">' + inputs + '<button class="btn" type="submit" id="gGo">' + F.go + '</button><p class="small" id="gErr" role="alert"></p></form><p class="small">Un seul appareil par compte · Agora test · by Stephen</p>';
   g.appendChild(b);
+  var pw = byIdEl('gPw');
+  if (pw) { var sl = document.createElement('label'); sl.className = 'gshow'; sl.innerHTML = '<input type="checkbox" id="gShow"> Afficher le mot de passe'; pw.parentNode.parentNode.insertBefore(sl, byIdEl('gGo')); byIdEl('gShow').onchange = function () { pw.type = this.checked ? 'text' : 'password'; }; }
   var rq = lsGet('ab_em'); if (rq && byIdEl('gMail') && mode !== 'demande') byIdEl('gMail').value = rq;
   b.querySelectorAll('.gtab').forEach(function (t) { t.onclick = function () { lsSet('ab_gm', t.getAttribute('data-gm')); gateForm(t.getAttribute('data-gm')); }; });
   byIdEl('gForm').onsubmit = function (ev) { ev.preventDefault(); gateSubmit(mode); };
@@ -3564,6 +3566,25 @@ function gateInit() {
   else if (lsGet('ab_ok') !== '1') gateMsg('Vérification…', 'Un instant.');
   gateCheck();
 }
+
+/* ---------- suivi des fonctions utilisées (envoyé à Stephen, testeur connecté seulement) ---------- */
+var TRK = { q: [], last: '', n: {
+  'écran:home': 'Écran Accueil', 'écran:studio': 'Écran Studio', 'écran:course': 'Écran Cours', 'écran:orators': 'Écran Orateurs', 'écran:prep': 'Écran Préparer', 'écran:proofs': 'Écran Preuves', 'écran:settings': 'Écran Réglages',
+  'rec-toggle': 'Enregistrement vocal', 'analyse': 'Analyse d’un discours', 'lesson': 'Leçon ouverte', 'orator': 'Orateur ouvert', 'o-try': 'Imiter un orateur', 'quiz-ans': 'Quiz : réponse', 'quiz-next': 'Quiz : suivant',
+  'type-open': 'Entraînement par type', 'type-ans': 'Entraînement : réponse', 'erist-open': 'Éristique ouverte', 'erist-quiz': 'Éristique : quiz', 'goal-add': 'Objectif ajouté', 'sess-del': 'Séance supprimée', 'open-session': 'Séance rouverte',
+  'again': 'Refaire un exercice', 'st-new': 'Nouvelle séance (studio)', 'export-data': 'Export des données', 'avis-send': 'Avis envoyé' } };
+function trkPush(k) { if (!TRK.n[k]) return; TRK.q.push({ t: Date.now(), e: TRK.n[k] }); if (TRK.q.length > 300) TRK.q.shift(); }
+function trkScreen() { var k = 'écran:' + (view && view.tab || 'home'); if (k !== TRK.last) { TRK.last = k; trkPush(k); } }
+function trkFlush() {
+  var em = lsGet('ab_em'), tok = lsGet('ab_tok'); if (!em || !tok || lsGet('ab_ok') !== '1' || !TRK.q.length || navigator.onLine === false) return;
+  var ev = TRK.q.splice(0, TRK.q.length);
+  try { fetch(SRV, { method: 'POST', keepalive: true, headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify({ action: 'usage', email: em, jeton: tok, events: ev }) }).then(function (r) { return r.json(); }).then(function (r) { if (!r || !r.ok) TRK.q = ev.concat(TRK.q); }).catch(function () { TRK.q = ev.concat(TRK.q); }); } catch (e) {}
+}
+function trkInit() {
+  document.addEventListener('click', function (ev) { var el = ev.target.closest && ev.target.closest('[data-act]'); if (!el) return; trkPush(el.getAttribute('data-act')); setTimeout(trkScreen, 80); }, true);
+  setTimeout(trkScreen, 1500); setInterval(trkFlush, 30000);
+  document.addEventListener('visibilitychange', function () { if (document.visibilityState === 'hidden') trkFlush(); });
+}
 function avisCard() {
   var s = byIdEl('stoInfo'), c = s && s.closest ? s.closest('.card') : null;
   if (!c || byIdEl('avisCard') || !lsGet('ab_tok')) return;
@@ -3587,7 +3608,7 @@ function pwaBoot() {
   window.addEventListener('appinstalled', function () { pwa.installEvt = null; render(); });
   trashPurge(); setInterval(trashPurge, 3600000);
   swInit();
-  gateInit();
+  gateInit(); trkInit();
   var cv = byIdEl('cover');
   if (cv) {
     var seen = false; try { seen = sessionStorage.getItem('ab_cover') === '1'; } catch (e) {}
