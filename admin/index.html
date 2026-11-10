@@ -46,6 +46,7 @@ footer{margin:22px 0;color:var(--mut);font-size:13px;text-align:center}
 <body>
 <div class="w">
 <header><div class="lg">A</div><div><h1>Agora test · Suivi</h1><small>Réservé à Stephen · by Stephen</small></div></header>
+<div class="card"><h2>Lien à envoyer à ton testeur</h2><p class="mu" style="margin:0 0 8px">Il ouvre ce lien, fait sa demande, puis tu valides depuis cette page.</p><div class="btns" style="margin:0"><input type="text" id="lnk" readonly value="https://andersonsoahita-hash.github.io/Agora-beta-test/" style="flex:1;min-width:220px" onfocus="this.select()"><button class="ok" id="cp">Copier le lien</button></div><p class="mu" id="cpm" role="status" style="margin:8px 0 0"></p></div>
 <div class="card" id="login"><h2>Clé admin</h2><p class="mu" style="margin-top:0">Dans ton Google Sheet : menu <b>Agora test &gt; Afficher ma clé admin</b>, puis colle-la ici. Elle reste seulement dans ce navigateur.</p><label>Clé<input type="text" id="cle" autocomplete="off" autocapitalize="off"></label><div class="btns"><button class="ok" id="go">Voir le suivi</button></div><p class="mu" id="err" role="alert"></p></div>
 <p class="mu" id="msg" role="status"></p>
 <div id="app"></div>
@@ -94,6 +95,8 @@ function draw(r){
   document.getElementById('rf').onclick=function(){load(localStorage.getItem(K)||'')};
 }
 document.addEventListener('click',function(ev){var b=ev.target.closest('[data-op]');if(!b)return;var op=b.dataset.op,em=b.dataset.e;if((op==='supprimer'||op==='effacer')&&b.dataset.sure!=='1'){b.dataset.sure='1';b.textContent=op==='effacer'?'Confirmer : effacer pour toujours':'Confirmer la suppression';return}act(op,em)});
+document.getElementById('cp').onclick=function(){var i=document.getElementById('lnk'),m=document.getElementById('cpm');function ok(){m.textContent='Lien copié.'}function fb(){i.focus();i.select();try{document.execCommand('copy')?ok():m.textContent='Sélectionné : fais Copier (Cmd+C).'}catch(e){m.textContent='Sélectionné : fais Copier (Cmd+C).'}}
+ if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(i.value).then(ok).catch(fb)}else fb()};
 document.getElementById('go').onclick=function(){load(document.getElementById('cle').value.trim())};
 var k='';try{k=localStorage.getItem(K)||''}catch(e){}
 if(k)load(k);
