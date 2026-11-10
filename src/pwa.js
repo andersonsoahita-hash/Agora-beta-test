@@ -574,6 +574,6 @@ function pwaBoot() {
     else { var go1 = byIdEl('coverGo'); if (go1) { go1.onclick = closeCover; } }
   }
   try {
-    if (navigator.onLine !== false) fetch('acces.json', { cache: 'no-store' }).then(function (r) { return r.ok ? r.json() : null; }).then(function (j) { if (j && j.actif === false) showLock(j.message); }).catch(function () {});
+    if (navigator.onLine !== false) fetch('acces.json', { cache: 'no-store' }).then(function (r) { return r.ok ? r.json() : null; }).then(function (j) { if (j && (j.actif === false || (j.jusqu_au && Date.now() > new Date(j.jusqu_au + 'T23:59:59').getTime()))) showLock(j.message || (j.actif !== false ? 'La période de test est terminée.' : '')); }).catch(function () {});
   } catch (e) {}
 }
