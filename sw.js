@@ -32,6 +32,7 @@ self.addEventListener('fetch', e => {
   const url = new URL(req.url);
   if (url.origin !== location.origin) return;
   if (url.pathname.endsWith('/acces.json')) return; /* toujours en direct */
+  if (url.pathname.indexOf('/admin/') !== -1) return; /* la page admin n'est pas l'appli : toujours en direct */
   if (req.mode === 'navigate') {
     e.respondWith(caches.match('./index.html', { ignoreSearch: true }).then(r => r || fetch(req)));
     return;
