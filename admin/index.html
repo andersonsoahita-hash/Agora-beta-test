@@ -49,7 +49,7 @@ footer{margin:22px 0;color:var(--mut);font-size:13px;text-align:center}
 <div class="card" id="login"><h2>Clé admin</h2><p class="mu" style="margin-top:0">Dans ton Google Sheet : menu <b>Agora test &gt; Afficher ma clé admin</b>, puis colle-la ici. Elle reste seulement dans ce navigateur.</p><label>Clé<input type="text" id="cle" autocomplete="off" autocapitalize="off"></label><div class="btns"><button class="ok" id="go">Voir le suivi</button></div><p class="mu" id="err" role="alert"></p></div>
 <p class="mu" id="msg" role="status"></p>
 <div id="app"></div>
-<div class="card"><h2>Valider, bloquer, supprimer</h2><p class="mu" style="margin:0">Ces actions se font dans le Google Sheet : onglet <b>Comptes</b>, clique sur la ligne du testeur, puis menu <b>Agora test</b>. Le changement est pris en compte à sa prochaine ouverture de l’appli. Pour une date de fin, remplis la colonne <b>Expire le</b>.</p></div>
+<div class="card"><h2>Valider, bloquer, supprimer</h2><p class="mu" style="margin:0">Les boutons ci-dessus agissent directement. « Renvoyer un code » remet le compte à zéro : nouveau code par e-mail, nouveau mot de passe, appareil libéré. Le changement est pris en compte à la prochaine ouverture de l’appli du testeur.</p></div>
 <footer>Agora test · Suivi · by Stephen</footer>
 </div>
 <script>
@@ -67,19 +67,23 @@ function load(cle){
   }).catch(function(){err.textContent='Connexion impossible.'});
 }
 function acts(x){var e=esc(x.email),st=x.statut,h='';
-  if(st==='en attente')h+='<button class="ok" data-op="valider" data-e="'+e+'">Valider</button> ';
-  if(st==='validé'||st==='expiré')h+='<button class="ko" data-op="bloquer" data-e="'+e+'">Bloquer</button> <button data-op="appareil" data-e="'+e+'">Autre appareil</button> <input type="date" class="dd" data-e="'+e+'" value="'+esc((x.expire||'').toString().slice(0,10))+'" style="width:auto;padding:8px"><button data-op="expire" data-e="'+e+'">Fixer la fin</button> ';
+  if(st==='en attente')h+='<button class="ok" data-op="valider" data-e="'+e+'">Valider et envoyer le code</button> ';
+  if(st==='validé'||st==='expiré')h+='<button data-op="valider" data-e="'+e+'">Renvoyer un code</button> <button data-op="appareil" data-e="'+e+'">Autre appareil</button> <button class="ko" data-op="bloquer" data-e="'+e+'">Bloquer</button> <input type="date" class="dd" data-e="'+e+'" value="'+esc((x.expire||'').toString().slice(0,10))+'" style="width:auto;padding:8px"><button data-op="expire" data-e="'+e+'">Fixer la fin</button> ';
   if(st==='bloqué')h+='<button class="ok" data-op="debloquer" data-e="'+e+'">Débloquer</button> ';
-  if(st==='supprimé')h+='<button class="ok" data-op="valider" data-e="'+e+'">Valider à nouveau</button> ';
+  if(st==='supprimé')h+='<button class="ok" data-op="valider" data-e="'+e+'">Revalider</button> ';
   if(st!=='supprimé')h+='<button class="ko" data-op="supprimer" data-e="'+e+'">Supprimer</button>';
   return '<div class="btns" style="margin:0">'+h+'</div>'}
+function etatTxt(x){if(x.statut==='validé'){return x.active?'Compte activé'+(x.appareil?' · appareil lié':''):(x.code?'Code envoyé, pas encore activé':'Validé')}return ''}
 function act(op,em){var cle=localStorage.getItem(K)||'',date='';
   if(op==='expire'){var i=document.querySelector('.dd[data-e="'+em+'"]');date=i?i.value:''}
   fetch(SRV,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify({action:'admin',cle:cle,op:op,email:em,date:date})}).then(function(r){return r.json()}).then(function(r){document.getElementById('msg').textContent=r.ok?'Fait.':(r.erreur||'Refusé.');load(cle)}).catch(function(){document.getElementById('msg').textContent='Connexion impossible.'})}
 function draw(r){
-  var c=r.comptes||[],a=r.avis||[];
-  var h='<div class="card"><h2>Comptes ('+c.length+')</h2>'+(c.length?'<div class="sc"><table><tr><th>Nom</th><th>E-mail</th><th>Statut</th><th>Dernière connexion</th><th>Fin d’accès</th><th>Actions</th></tr>'+c.map(function(x){var b=B[x.statut]||['wt',esc(x.statut)];return '<tr><td>'+esc(x.nom)+'</td><td>'+esc(x.email)+'</td><td><span class="st '+b[0]+'">'+b[1]+'</span></td><td>'+fd(x.derniere)+'</td><td>'+(x.expire?fd(x.expire).split(' ')[0]:'sans limite')+'</td><td>'+acts(x)+'</td></tr>'}).join('')+'</table></div>':'<p class="mu" style="margin:0">Aucune demande pour l’instant.</p>')+'</div>';
+  var c=r.comptes||[],a=r.avis||[],j=r.journal||[];
+  var n=function(st){return c.filter(function(x){return x.statut===st}).length};
+  var h='<div class="kp"><div class="k"><span>En attente</span><b>'+n('en attente')+'</b></div><div class="k"><span>Actifs</span><b>'+n('validé')+'</b></div><div class="k"><span>Bloqués</span><b>'+n('bloqué')+'</b></div><div class="k"><span>Avis reçus</span><b>'+a.length+'</b></div></div><div style="height:14px"></div>';
+  h+='<div class="card"><h2>Comptes ('+c.length+')</h2>'+(c.length?c.map(function(x){var b=B[x.statut]||['wt',esc(x.statut)];return '<div class="card" style="margin:0 0 10px"><div class="row"><div><b>'+esc(x.nom)+'</b><div class="mu">'+esc(x.email)+(x.tel?' · '+esc(x.tel):'')+(x.age?' · '+esc(x.age)+' ans':'')+'</div></div><span class="st '+b[0]+'">'+b[1]+'</span></div><p class="mu" style="margin:8px 0">Demande du '+fd(x.demande).split(' ')[0]+' · '+(etatTxt(x)||'—')+' · dernière connexion : '+fd(x.derniere)+' · fin d’accès : '+(x.expire?fd(x.expire).split(' ')[0]:'sans limite')+'</p>'+acts(x)+'</div>'}).join(''):'<p class="mu" style="margin:0">Aucune demande pour l’instant.</p>')+'</div>';
   h+='<div class="card"><h2>Avis reçus ('+a.length+')</h2>'+(a.length?'<div class="sc"><table><tr><th>Date</th><th>Testeur</th><th>Écran</th><th>Avis</th></tr>'+a.slice().reverse().map(function(f){return '<tr><td>'+fd(f[0])+'</td><td>'+esc(f[1])+'</td><td>'+esc(f[2])+'</td><td>'+esc(f[3])+'</td></tr>'}).join('')+'</table></div>':'<p class="mu" style="margin:0">Aucun avis pour l’instant.</p>')+'</div>';
+  h+='<div class="card"><h2>Journal</h2>'+(j.length?'<ul>'+j.slice().reverse().map(function(l){return '<li>'+fd(l[0])+' — '+esc(l[1])+'</li>'}).join('')+'</ul>':'<p class="mu" style="margin:0">Rien pour l’instant.</p>')+'</div>';
   h+='<div class="btns"><button id="rf">Actualiser</button></div>';
   document.getElementById('app').innerHTML=h;
   document.getElementById('rf').onclick=function(){load(localStorage.getItem(K)||'')};

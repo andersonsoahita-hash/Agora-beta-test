@@ -7,4 +7,4 @@
 5. Recharge le Sheet : un menu **Agora test** apparaît (Valider, Bloquer, Débloquer, Supprimer).
 6. Donne l'URL /exec : elle sera branchée dans l'appli de test.
 
-Dans l'onglet **Comptes** : colonne *Expire le* = date de fin d'accès (laisser vide = sans limite).
+

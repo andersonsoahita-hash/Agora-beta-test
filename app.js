@@ -1,4 +1,4 @@
-window.AGORA_BUILD='bd6bced06b';
+window.AGORA_BUILD='04a72f4dc1';
 /* ============================================================
    Analyse de la voix (signal) et du texte (transcription)
    Tout se calcule dans la page. Aucun audio n'est envoyé nulle part.
@@ -3487,71 +3487,86 @@ function srv(body) {
 function devId() { var d = lsGet('ab_dev'); if (!d) { d = 'd' + Math.random().toString(36).slice(2, 10) + Date.now().toString(36); lsSet('ab_dev', d); } return d; }
 function gateEl() { var g = byIdEl('gate'); if (!g) { g = document.createElement('div'); g.id = 'gate'; g.className = 'lock gate'; g.setAttribute('role', 'dialog'); document.body.appendChild(g); } return g; }
 function gateClose() { var g = byIdEl('gate'); if (g && g.parentNode) g.parentNode.removeChild(g); }
-function gateMsg(titre, texte, extra) {
+function gateMsg(titre, texte, bouton) {
   var g = gateEl(); g.innerHTML = '';
   var b = document.createElement('div'); b.className = 'lockbox';
   var h = document.createElement('h2'); h.textContent = titre; var p = document.createElement('p'); p.textContent = texte;
-  b.appendChild(h); b.appendChild(p); if (extra) b.appendChild(extra);
+  b.appendChild(h); b.appendChild(p);
+  if (bouton) { var bt = document.createElement('button'); bt.className = 'btn'; bt.type = 'button'; bt.textContent = bouton[0]; bt.onclick = bouton[1]; b.appendChild(bt); }
   var q = document.createElement('p'); q.className = 'small'; q.textContent = 'Agora test · by Stephen'; b.appendChild(q); g.appendChild(b);
 }
 function gateWipe() {
   try { Object.keys(localStorage).forEach(function (k) { if (k.indexOf('ab_') === 0 || k === LS) localStorage.removeItem(k); }); } catch (e) {}
   try { indexedDB.deleteDatabase('agora_b_db'); } catch (e) {}
 }
-function gateForm() {
+var GF = {
+  demande: { t: 'Demander mon accès', d: 'Agora test est en accès sur invitation. Stephen valide ta demande puis t’envoie un code d’activation par e-mail.',
+    f: [['Nom', 'gNom', 'text', 'family-name'], ['Prénoms', 'gPre', 'text', 'given-name'], ['Âge', 'gAge', 'number', ''], ['Téléphone', 'gTel', 'tel', 'tel'], ['E-mail', 'gMail', 'email', 'email']], go: 'Envoyer ma demande' },
+  code: { t: 'J’ai un code', d: 'Entre ton e-mail, le code reçu (il ne marche qu’une fois) et crée ton mot de passe. Il lie ce compte à cet appareil.',
+    f: [['E-mail', 'gMail', 'email', 'email'], ['Code d’activation', 'gCode', 'text', 'off'], ['Crée ton mot de passe (6 caractères min.)', 'gPw', 'password', 'new-password']], go: 'Activer mon compte' },
+  login: { t: 'Me reconnecter', d: 'Pour retrouver ton compte sur l’appareil déjà activé.',
+    f: [['E-mail', 'gMail', 'email', 'email'], ['Mot de passe', 'gPw', 'password', 'current-password']], go: 'Me connecter' }
+};
+function gateForm(mode) {
+  mode = mode || lsGet('ab_gm') || 'demande'; var F = GF[mode];
   var g = gateEl(); g.innerHTML = '';
   var b = document.createElement('div'); b.className = 'lockbox gbox';
-  b.innerHTML = '<h2>Demander mon accès</h2><p>Agora test est en accès sur invitation. Remplis ce formulaire : Stephen valide ta demande puis t’envoie ton lien personnel par e-mail.</p>'
-    + '<form id="gForm" autocomplete="on"><label>Nom<input type="text" id="gNom" required maxlength="60" autocomplete="family-name"></label>'
-    + '<label>Prénoms<input type="text" id="gPre" required maxlength="80" autocomplete="given-name"></label>'
-    + '<label>Âge<input type="number" id="gAge" inputmode="numeric" min="10" max="99"></label>'
-    + '<label>Téléphone<input type="text" id="gTel" inputmode="tel" maxlength="30" autocomplete="tel"></label>'
-    + '<label>E-mail<input type="text" id="gMail" required inputmode="email" maxlength="80" autocomplete="email"></label>'
-    + '<button class="btn" type="submit" id="gGo">Envoyer ma demande</button><p class="small" id="gErr" role="alert"></p></form>'
-    + '<p class="small">Un seul appareil par compte. Agora test · by Stephen</p>';
+  var tabs = ''; [['demande', 'Demander l’accès'], ['code', 'J’ai un code'], ['login', 'Me reconnecter']].forEach(function (x) { tabs += '<button type="button" class="gtab' + (x[0] === mode ? ' on' : '') + '" data-gm="' + x[0] + '">' + x[1] + '</button>'; });
+  var inputs = F.f.map(function (f) { return '<label>' + f[0] + '<input id="' + f[1] + '" type="' + f[2] + '"' + (f[2] === 'number' ? ' inputmode="numeric" min="10" max="99"' : f[2] === 'tel' ? ' inputmode="tel"' : '') + (f[3] ? ' autocomplete="' + f[3] + '"' : '') + ' maxlength="80"' + (f[1] === 'gTel' || f[1] === 'gAge' ? '' : ' required') + ' autocapitalize="off"></label>'; }).join('');
+  b.innerHTML = '<div class="gtabs">' + tabs + '</div><h2>' + F.t + '</h2><p>' + F.d + '</p><form id="gForm">' + inputs + '<button class="btn" type="submit" id="gGo">' + F.go + '</button><p class="small" id="gErr" role="alert"></p></form><p class="small">Un seul appareil par compte · Agora test · by Stephen</p>';
   g.appendChild(b);
-  byIdEl('gForm').onsubmit = function (ev) {
-    ev.preventDefault();
-    var em = byIdEl('gMail').value.trim().toLowerCase(), err = byIdEl('gErr');
-    if (!/^\S+@\S+\.\S+$/.test(em)) { err.textContent = 'Adresse e-mail invalide.'; return; }
-    var btn = byIdEl('gGo'); btn.disabled = true; btn.textContent = 'Envoi…'; err.textContent = '';
-    srv({ action: 'demande', nom: byIdEl('gNom').value.trim(), prenoms: byIdEl('gPre').value.trim(), age: byIdEl('gAge').value, tel: byIdEl('gTel').value.trim(), email: em })
-      .then(function (r) {
-        if (!r || !r.ok) { err.textContent = (r && r.erreur) || 'Demande refusée.'; btn.disabled = false; btn.textContent = 'Envoyer ma demande'; return; }
-        lsSet('ab_req', em); gateWait(r.etat);
-      }).catch(function () { err.textContent = 'Connexion impossible. Vérifie ton réseau et réessaie.'; btn.disabled = false; btn.textContent = 'Envoyer ma demande'; });
-  };
+  var rq = lsGet('ab_em'); if (rq && byIdEl('gMail') && mode !== 'demande') byIdEl('gMail').value = rq;
+  b.querySelectorAll('.gtab').forEach(function (t) { t.onclick = function () { lsSet('ab_gm', t.getAttribute('data-gm')); gateForm(t.getAttribute('data-gm')); }; });
+  byIdEl('gForm').onsubmit = function (ev) { ev.preventDefault(); gateSubmit(mode); };
+}
+function gateSubmit(mode) {
+  var err = byIdEl('gErr'), btn = byIdEl('gGo'), em = byIdEl('gMail').value.trim().toLowerCase(), lab = btn.textContent;
+  if (!/^\S+@\S+\.\S+$/.test(em)) { err.textContent = 'Adresse e-mail invalide.'; return; }
+  var body;
+  if (mode === 'demande') body = { action: 'demande', nom: byIdEl('gNom').value.trim(), prenoms: byIdEl('gPre').value.trim(), age: byIdEl('gAge').value, tel: byIdEl('gTel').value.trim(), email: em };
+  else if (mode === 'code') body = { action: 'activer', email: em, code: byIdEl('gCode').value.trim(), mdp: byIdEl('gPw').value, appareil: devId() };
+  else body = { action: 'connexion', email: em, mdp: byIdEl('gPw').value, appareil: devId() };
+  btn.disabled = true; btn.textContent = 'Un instant…'; err.textContent = '';
+  srv(body).then(function (r) {
+    btn.disabled = false; btn.textContent = lab;
+    if (!r || !r.ok) { err.textContent = (r && r.erreur) || 'Refusé.'; return; }
+    lsSet('ab_em', em);
+    if (mode === 'demande') { gateWait(r.etat); return; }
+    gateResult(r);
+  }).catch(function () { btn.disabled = false; btn.textContent = lab; err.textContent = 'Connexion impossible. Vérifie ton réseau et réessaie.'; });
 }
 function gateWait(etat) {
-  var txt = etat === 'bloqué' ? 'Ce compte est bloqué. Contacte Stephen.' : etat === 'validé' ? 'Ta demande est déjà validée : ouvre le lien reçu par e-mail.' : 'Ta demande est envoyée. Dès que Stephen l’aura validée, tu recevras un e-mail avec ton lien personnel. Ouvre ce lien sur l’appareil que tu utiliseras.';
-  gateMsg('Demande envoyée', txt);
+  var txt = etat === 'bloqué' ? 'Ce compte est bloqué. Contacte Stephen.' : etat === 'validé' ? 'Ta demande est déjà validée : regarde ton e-mail, puis choisis « J’ai un code ».' : 'Ta demande est envoyée. Dès que Stephen l’aura validée, tu recevras un code d’activation par e-mail. Reviens alors ici et choisis « J’ai un code ».';
+  gateMsg('Demande envoyée', txt, ['J’ai déjà un code', function () { gateForm('code'); }]);
+}
+function gateResult(r) {
+  if (r.etat === 'validé' && r.jeton) { lsSet('ab_tok', r.jeton); lsSet('ab_ok', '1'); gateClose(); try { avisCard(); } catch (e) {} return; }
+  if (r.etat === 'validé') { gateClose(); return; }
+  if (r.etat === 'bloqué') return gateMsg('Accès suspendu', 'Ton accès a été suspendu par Stephen. Tes données restent sur ton appareil.');
+  if (r.etat === 'expiré') return gateMsg('Période de test terminée', 'Merci d’avoir testé Agora ! L’accès est arrivé à son terme.');
+  if (r.etat === 'autre appareil') return gateMsg('Déjà utilisé sur un autre appareil', 'Ce compte est lié à un seul appareil. Demande à Stephen de le réinitialiser.');
+  gateForm('demande');
 }
 function gateCheck() {
-  var code = lsGet('ab_code');
-  if (!code) { var rq = lsGet('ab_req'); if (rq) gateWait('en attente'); else gateForm(); return; }
+  var em = lsGet('ab_em'), tok = lsGet('ab_tok');
+  if (!em || !tok) { gateForm(); return; }
   if (navigator.onLine === false && lsGet('ab_ok') === '1') return;
-  srv({ action: 'etat', code: code, appareil: devId() }).then(function (r) {
+  srv({ action: 'etat', email: em, jeton: tok, appareil: devId() }).then(function (r) {
     if (!r || !r.ok) { if (lsGet('ab_ok') === '1') return; gateMsg('Connexion impossible', 'Réessaie dans un instant.'); return; }
     if (r.etat === 'validé') { lsSet('ab_ok', '1'); gateClose(); return; }
-    if (r.etat === 'supprimé' || r.etat === 'inconnu') { gateWipe(); gateForm(); return; }
-    if (r.etat === 'bloqué') { gateMsg('Accès suspendu', 'Ton accès a été suspendu par Stephen. Tes données restent sur ton appareil.'); return; }
-    if (r.etat === 'expiré') { gateMsg('Période de test terminée', 'Merci d’avoir testé Agora ! L’accès est arrivé à son terme.'); return; }
-    if (r.etat === 'autre appareil') { gateMsg('Déjà utilisé sur un autre appareil', 'Ce compte est lié à un seul appareil. Demande à Stephen de le réinitialiser.'); return; }
-    gateWait(r.etat);
+    if (r.etat === 'supprimé' || r.etat === 'inconnu') { gateWipe(); gateForm('demande'); return; }
+    if (r.etat === 'session') { lsSet('ab_tok', ''); gateForm('login'); return; }
+    gateResult(r);
   }).catch(function () { if (lsGet('ab_ok') === '1') return; gateMsg('Connexion impossible', 'Vérifie ton réseau puis recharge la page.'); });
 }
 function gateInit() {
-  try {
-    var m = /[?&]c=([A-Za-z0-9]{8,40})/.exec(location.search);
-    if (m) { var old = lsGet('ab_code'); if (old && old !== m[1]) gateWipe(); lsSet('ab_code', m[1]); try { history.replaceState(null, '', location.pathname); } catch (e) {} }
-  } catch (e) {}
-  if (!lsGet('ab_code') && !lsGet('ab_req')) gateForm(); /* affiché tout de suite, avant tout réseau */
-  else if (!lsGet('ab_ok')) gateMsg('Vérification…', 'Un instant.');
+  if (!lsGet('ab_em') || !lsGet('ab_tok')) gateForm();
+  else if (lsGet('ab_ok') !== '1') gateMsg('Vérification…', 'Un instant.');
   gateCheck();
 }
 function avisCard() {
   var s = byIdEl('stoInfo'), c = s && s.closest ? s.closest('.card') : null;
-  if (!c || byIdEl('avisCard') || !lsGet('ab_code')) return;
+  if (!c || byIdEl('avisCard') || !lsGet('ab_tok')) return;
   var d = document.createElement('div'); d.className = 'card'; d.id = 'avisCard';
   d.innerHTML = '<h3>Donner mon avis</h3><p class="small">Ce qui est confus, ce qui manque, ce qui te plaît : écris-le ici, Stephen le reçoit directement.</p>'
     + '<textarea id="avisTxt" maxlength="1500" placeholder="Ton avis sur Agora…"></textarea><div style="margin-top:10px"><button class="btn" data-act="avis-send" type="button">Envoyer mon avis</button> <span class="small" id="avisMsg"></span></div>';
@@ -3560,7 +3575,7 @@ function avisCard() {
 function avisSend() {
   var t = byIdEl('avisTxt'), m = byIdEl('avisMsg'); if (!t || !t.value.trim()) return;
   m.textContent = 'Envoi…';
-  srv({ action: 'avis', code: lsGet('ab_code'), ecran: (view && view.tab) || '', texte: t.value.trim() })
+  srv({ action: 'avis', email: lsGet('ab_em'), jeton: lsGet('ab_tok'), ecran: (view && view.tab) || '', texte: t.value.trim() })
     .then(function (r) { if (r && r.ok) { t.value = ''; m.textContent = 'Merci, avis envoyé.'; } else m.textContent = 'Envoi refusé.'; })
     .catch(function () { m.textContent = 'Connexion impossible, réessaie.'; });
 }
