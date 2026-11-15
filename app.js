@@ -1,4 +1,4 @@
-window.AGORA_BUILD='d9dce8ee71';
+window.AGORA_BUILD='a908bfa09c';
 /* ============================================================
    Analyse de la voix (signal) et du texte (transcription)
    Tout se calcule dans la page. Aucun audio n'est envoyé nulle part.
@@ -3645,6 +3645,7 @@ function gateResult(r) {
 }
 function gateCheck() {
   var em = lsGet('ab_em'), tok = lsGet('ab_tok');
+  if (byIdEl('gForm')) { if (em && tok) srv({ action: 'etat', email: em, jeton: tok, appareil: devId() }).then(function (r) { if (r && r.ok && r.etat === 'validé') { lsSet('ab_ok', '1'); gateClose(); } }).catch(function () {}); return; } /* formulaire ouvert : on ne le réécrit jamais pendant la saisie */
   if (!em || !tok) { gateForm(); return; }
   if (navigator.onLine === false && lsGet('ab_ok') === '1') return;
   srv({ action: 'etat', email: em, jeton: tok, appareil: devId() }).then(function (r) {
