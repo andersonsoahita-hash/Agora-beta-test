@@ -300,6 +300,7 @@ function homeBanners() {
   }
   if (pwa.updateReady) h += '<div class="card banner"><b>Nouvelle version prête</b><p class="muted small" style="margin:4px 0 8px">Ton travail est conservé.</p><button class="btn small" data-act="update-now">Mettre à jour</button></div>';
   if (needBackup()) h += '<div class="card banner"><b>Pense à sauvegarder</b><p class="muted small" style="margin:4px 0 8px">Ta dernière sauvegarde date de plus de 14 jours' + (S.lastExport ? ' (' + esc(fmtDay(S.lastExport)) + ')' : ' ou n’a jamais été faite') + '.</p><div class="row"><button class="btn small" data-act="export-data">Sauvegarder maintenant</button><button class="btn small ghost" data-act="bk-later">Plus tard</button></div></div>';
+  if (notifState() === 'default' && lsGet('ab_notif_ask') !== 'x' && lsGet('ab_ok') === '1') h += '<div class="card banner"><b>Active les notifications</b><p class="muted small" style="margin:4px 0 8px">Ton défi du jour et ta série, rappelés au bon moment. Tu peux les couper quand tu veux.</p><div class="row"><button class="btn small" data-act="notif-on">Activer</button><button class="btn small ghost" data-act="notif-later">Plus tard</button></div></div>';
   if (!isStandalone() && lsGet('ab_inst_dismiss') !== '1') {
     if (pwa.installEvt) h += '<div class="card banner"><b>Installer Agora</b><p class="muted small" style="margin:4px 0 8px">Pour l’ouvrir comme une application, même hors ligne.</p><div class="row"><button class="btn small" data-act="install">Installer</button><button class="btn small ghost" data-act="inst-hide">Masquer</button></div></div>';
     else if (isIOS()) h += '<div class="card banner"><b>Installer Agora sur l’iPhone</b><p class="muted small" style="margin:4px 0 8px">Dans Safari : bouton Partager, puis « Sur l’écran d’accueil ».</p><button class="btn small ghost" data-act="inst-hide">Masquer</button></div>';
@@ -466,8 +467,9 @@ function pwaAct(act, v, el, ev) {
     case 'bk-later': lsSet('ab_bk_dismiss', today()); render(); return true;
     case 'avis-send': avisSend(); return true;
     case 'update-check': swCheck(); return true;
-    case 'notif-on': lsSet('ab_notif_off', ''); notifEnable(); return true;
+    case 'notif-on': lsSet('ab_notif_off', ''); lsSet('ab_notif_ask', 'x'); notifEnable(); return true;
     case 'notif-off': notifDisable(); return true;
+    case 'notif-later': lsSet('ab_notif_ask', 'x'); render(); return true;
     case 'update-now': swApply(); return true;
     case 'export-data': exportState(); if (view.tab === 'home' || view.tab === 'settings') setTimeout(render, 50); return true;
     case 'export-recs': exportRecs(); return true;
