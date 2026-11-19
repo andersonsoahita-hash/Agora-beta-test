@@ -661,7 +661,7 @@ function gateInit() {
 
 
 /* ---------- notifications (OneSignal) : défi du jour, série, relance ---------- */
-var NOTIF_APP_ID = '4462d7a7-1b26-4d5f-aa5b-1ae7bc135057'; /* ← colle ici l'App ID OneSignal (public) */
+var NOTIF_APP_ID = ''; /* notifications en pause. App ID OneSignal à remettre ici pour les réactiver : 4462d7a7-1b26-4d5f-aa5b-1ae7bc135057 */ /* ← colle ici l'App ID OneSignal (public) */
 var notif = { ready: false, loading: false };
 function notifOk() { return !!NOTIF_APP_ID && ('Notification' in window) && ('serviceWorker' in navigator) && (!/iPad|iPhone|iPod/.test(navigator.userAgent) || isStandalone()); }
 function notifState() { if (!NOTIF_APP_ID) return 'config'; if (!('Notification' in window)) return 'non'; if (/iPad|iPhone|iPod/.test(navigator.userAgent) && !isStandalone()) return 'ios'; return Notification.permission; }
@@ -696,7 +696,7 @@ function notifEnable() {
 function notifDisable() { notifLoad(function (OS) { try { OS.User.PushSubscription.optOut(); } catch (e) {} lsSet('ab_notif_off', '1'); if (view.tab === 'settings') render(); }); }
 function notifCard() {
   var st = notifState(), off = lsGet('ab_notif_off') === '1', on = st === 'granted' && !off, h = '<div class="card stack"><h3>Notifications</h3>';
-  if (st === 'config') return h + '<p class="muted small" style="margin:0">Bientôt disponibles.</p></div>';
+  if (st === 'config') return '';
   h += '<p class="muted small" style="margin:0">Reçois ton défi du jour, un rappel pour garder ta série et une relance si tu t’éloignes. Tu peux les couper à tout moment.</p>';
   if (st === 'ios') return h + '<p class="small" style="margin:0">Sur iPhone : ouvre le menu Partager de Safari, choisis « Sur l’écran d’accueil », puis rouvre Agora depuis l’icône pour activer les notifications.</p></div>';
   if (st === 'denied') return h + '<p class="small" style="margin:0">Les notifications sont bloquées pour Agora : autorise-les dans les réglages de ton téléphone ou du navigateur.</p></div>';
