@@ -182,13 +182,14 @@ function doGet() { return rep_({ ok: true, service: 'Agora test' }); }
    Réglages > Propriétés du script : OS_APP_ID (App ID) et OS_API_KEY (clé « REST API Key »).
    Lancer UNE fois « installerNotifs » : crée 3 envois automatiques par jour.
    L'appli envoie à OneSignal deux étiquettes : last_day (dernier jour d'entraînement, UTC) et streak. */
+var APP_URL_ = 'https://andersonsoahita-hash.github.io/Agora-beta-test/';
 function jourUTC_(decalage) { return Utilities.formatDate(new Date(Date.now() + (decalage || 0) * 86400000), 'UTC', 'yyyy-MM-dd'); }
 function notif_(titre, texte, filtres) {
   var P = PropertiesService.getScriptProperties(), id = P.getProperty('OS_APP_ID'), cle = P.getProperty('OS_API_KEY');
   if (!id || !cle) { Logger.log('OS_APP_ID / OS_API_KEY manquants'); return; }
   var r = UrlFetchApp.fetch('https://api.onesignal.com/notifications', { method: 'post', contentType: 'application/json', muteHttpExceptions: true,
     headers: { Authorization: 'Key ' + cle },
-    payload: JSON.stringify({ app_id: id, target_channel: 'push', filters: filtres, headings: { fr: titre, en: titre }, contents: { fr: texte, en: texte }, ttl: 43200 }) });
+    payload: JSON.stringify({ app_id: id, target_channel: 'push', url: APP_URL_, filters: filtres, headings: { fr: titre, en: titre }, contents: { fr: texte, en: texte }, ttl: 43200 }) });
   Logger.log(r.getResponseCode() + ' ' + r.getContentText().slice(0, 200));
 }
 var DEFIS_ = [{"n":"Argumenter une idée","s":["Tout le monde devrait apprendre à parler en public","Le téléphone devrait être interdit en réunion","Le luxe est un art avant d’être un commerce","Madagascar a un atout sous-estimé","Travailler à distance rend meilleur","Il faut échouer pour apprendre","Un bon leader sait écouter avant de parler","Les études ne suffisent plus"]},{"n":"Parler à partir d’un mot","s":["Confiance","Héritage","Rareté","Patience","Frontière","Lenteur","Élégance","Risque","Mémoire","Silence"]},{"n":"Raconter une histoire","s":["Une fois où j’ai eu peur de parler","Un échec qui m’a appris quelque chose","La rencontre qui a changé mon parcours","Un voyage qui m’a marqué","Mon premier jour dans un lieu inconnu"]},{"n":"Défendre un camp","s":["Les émissions de télé-réalité devraient être diffusées après 22 h","L’intelligence artificielle devrait être autorisée dans la création artistique","La semaine de travail devrait durer quatre jours","Le luxe peut être durable","La prise de parole en public devrait être obligatoire à l’école","Les réseaux sociaux devraient être interdits avant 15 ans","Le télétravail devrait être un droit","Les marques de luxe devraient publier leurs prix de fabrication","Il faut rendre le vote obligatoire","L’uniforme devrait être obligatoire à l’école","La publicité devrait être interdite dans l’espace public","Les stages non rémunérés devraient être interdits","Il faut limiter le tourisme de masse","Les études supérieures devraient être gratuites","Les influenceurs devraient être soumis aux mêmes règles que les médias","Les cryptomonnaies sont l’avenir de l’argent","Il faut apprendre à coder dès le primaire","La seconde main devrait remplacer le neuf dans la mode","Les entreprises devraient imposer des quotas de diversité","Le salaire de chacun devrait être public","Le téléphone devrait être interdit en réunion","Les notes à l’école devraient être supprimées","Il faut taxer davantage les produits de luxe","La contrefaçon fait du bien aux grandes marques","Madagascar devrait miser d’abord sur le tourisme","Les jeunes diplômés devraient d’abord travailler à l’étranger","Le service civique devrait être obligatoire","Les voitures devraient être interdites en centre-ville","On devrait pouvoir noter son employeur publiquement","L’expérience compte plus que le diplôme","Les musées devraient être gratuits","Le bénévolat devrait compter dans les études","Il faut limiter les écrans à la maison","Le client n’a pas toujours raison","La concurrence est plus utile que la coopération"]},{"n":"Répondre à une question","s":["Pourquoi devrions-nous vous écouter ?","Quelle est votre plus grande faiblesse ?","Qu’est-ce qui vous différencie ?","Pourquoi ce projet maintenant ?","Et si vous vous trompiez ?"]},{"n":"Relier ses idées (5 étapes)","s":["Qu’est-ce que le bonheur ?","Faut-il toujours dire la vérité ?","La réussite se mérite-t-elle ?","Parler en public est-il un don ?","Faut-il apprendre à perdre ?","Le luxe est-il utile ?","Que vaut une promesse ?"]},{"n":"Discours complet","s":["Pourquoi j’ai écrit ce livre","Ce que je veux transmettre à ma génération","Présenter un projet à un jury","Un discours de remerciement"]},{"n":"Recherche express","s":[]},{"n":"Discours à jouer","s":[]}]; /* mêmes exercices que l'appli, dans le même ordre */
@@ -205,9 +206,30 @@ function notifSerie() { // 20 h : série en jeu (entraîné hier, pas encore auj
 function notifRelance() { // 12 h : relance après 3 jours sans s'entraîner
   var n = numJour_(); notif_(pick_(['Ta voix te manque', 'On t’attend sur Agora', 'Reprends la parole'], n), pick_(['Ça fait trois jours. Reprends avec un exercice court.', 'Un exercice de deux minutes suffit pour reprendre le rythme.', 'Ton dernier entraînement date de trois jours : une petite séance ?'], n), [{ field: 'tag', key: 'last_day', relation: '=', value: jourUTC_(-3) }]);
 }
+
+function notifPaliers() { // 21 h : un palier de série atteint aujourd'hui (3, 7, 14, 30, 60, 100 jours)
+  [3, 7, 14, 30, 60, 100].forEach(function (n) {
+    notif_(n + ' jours de suite !', pick_(['Série de ' + n + ' jours : bravo, ta régularité paie.', n + ' jours d’affilée. Continue, tu progresses vraiment.'], n),
+      [{ field: 'tag', key: 'streak', relation: '=', value: String(n) }, { field: 'tag', key: 'last_day', relation: '=', value: jourUTC_(0) }]);
+  });
+}
+function notifVersion() { // toutes les heures : prévient quand une nouvelle version de l'appli est en ligne (1 fois par jour au maximum)
+  var P = PropertiesService.getScriptProperties(), r = UrlFetchApp.fetch(APP_URL_ + 'sw.js?t=' + Date.now(), { muteHttpExceptions: true });
+  if (r.getResponseCode() !== 200) return;
+  var m = /abeta-([0-9a-f]+)/.exec(r.getContentText()); if (!m) return;
+  var vue = P.getProperty('VERSION_VUE'), der = P.getProperty('VERSION_ENVOI') || '';
+  if (!vue) { P.setProperty('VERSION_VUE', m[1]); return; }
+  if (vue === m[1]) return;
+  P.setProperty('VERSION_VUE', m[1]);
+  if (der === jourUTC_(0)) return;
+  P.setProperty('VERSION_ENVOI', jourUTC_(0));
+  notif_('Mise à jour disponible', 'Une nouvelle version d’Agora test est prête. Ouvre l’appli pour en profiter.', [{ field: 'tag', key: 'ab', relation: '=', value: '1' }]);
+}
 function installerNotifs() {
-  ScriptApp.getProjectTriggers().forEach(function (t) { if (['notifDefi', 'notifSerie', 'notifRelance'].indexOf(t.getHandlerFunction()) >= 0) ScriptApp.deleteTrigger(t); });
+  ScriptApp.getProjectTriggers().forEach(function (t) { if (['notifDefi', 'notifSerie', 'notifRelance', 'notifPaliers', 'notifVersion'].indexOf(t.getHandlerFunction()) >= 0) ScriptApp.deleteTrigger(t); });
   ScriptApp.newTrigger('notifRelance').timeBased().everyDays(1).atHour(12).inTimezone('Europe/Paris').create();
   ScriptApp.newTrigger('notifDefi').timeBased().everyDays(1).atHour(18).inTimezone('Europe/Paris').create();
   ScriptApp.newTrigger('notifSerie').timeBased().everyDays(1).atHour(20).inTimezone('Europe/Paris').create();
+  ScriptApp.newTrigger('notifPaliers').timeBased().everyDays(1).atHour(21).inTimezone('Europe/Paris').create();
+  ScriptApp.newTrigger('notifVersion').timeBased().everyHours(1).create();
 }

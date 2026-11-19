@@ -14,4 +14,4 @@
 2. Copie l'**App ID** (à me donner : il est public) et la **REST API Key** (secrète, ne la partage nulle part sauf ici).
 3. Apps Script > Paramètres du projet > Propriétés du script : `OS_APP_ID` et `OS_API_KEY`.
 4. Colle le nouveau `Code.gs`, lance `installerNotifs` une fois, puis Déployer > Nouvelle version.
-5. Envois automatiques : 12 h relance (3 jours d'absence), 18 h défi du jour (si pas encore entraîné), 20 h série en jeu. Heure de Paris.
+5. Envois automatiques (heure de Paris) : 12 h relance après 3 jours, 18 h défi du jour, 20 h série en jeu, 21 h palier de série (3, 7, 14, 30, 60, 100 jours), et toutes les heures un contrôle de nouvelle version (1 notification par jour au maximum).
