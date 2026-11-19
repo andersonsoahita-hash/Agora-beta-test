@@ -1,4 +1,4 @@
-window.AGORA_BUILD='42d1fab0c3';
+window.AGORA_BUILD='49ba9f52c3';
 /* ============================================================
    Analyse de la voix (signal) et du texte (transcription)
    Tout se calcule dans la page. Aucun audio n'est envoyé nulle part.
@@ -3675,7 +3675,7 @@ var NOTIF_APP_ID = '4462d7a7-1b26-4d5f-aa5b-1ae7bc135057'; /* ← colle ici l'Ap
 var notif = { ready: false, loading: false };
 function notifOk() { return !!NOTIF_APP_ID && ('Notification' in window) && ('serviceWorker' in navigator) && (!/iPad|iPhone|iPod/.test(navigator.userAgent) || isStandalone()); }
 function notifState() { if (!NOTIF_APP_ID) return 'config'; if (!('Notification' in window)) return 'non'; if (/iPad|iPhone|iPod/.test(navigator.userAgent) && !isStandalone()) return 'ios'; return Notification.permission; }
-function notifErr(m) { notif.err = String(m || 'erreur inconnue').slice(0, 160); notif.ready = false; notif.busy = false; if (view.tab === 'settings') { try { render(); } catch (e) {} } }
+function notifErr(m) { notif.err = String(m || 'erreur inconnue').slice(0, 160) + ' [v' + String(BUILD).slice(0, 6) + ']'; notif.ready = false; notif.busy = false; if (view.tab === 'settings') { try { render(); } catch (e) {} } }
 function notifLoad(cb) {
   if (!notifOk()) return;
   window.OneSignalDeferred = window.OneSignalDeferred || [];
