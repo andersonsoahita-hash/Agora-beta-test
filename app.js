@@ -1,4 +1,4 @@
-window.AGORA_BUILD='28f9174625';
+window.AGORA_BUILD='42d1fab0c3';
 /* ============================================================
    Analyse de la voix (signal) et du texte (transcription)
    Tout se calcule dans la page. Aucun audio n'est envoyé nulle part.
@@ -3680,10 +3680,10 @@ function notifLoad(cb) {
   if (!notifOk()) return;
   window.OneSignalDeferred = window.OneSignalDeferred || [];
   window.OneSignalDeferred.push(function (OS) {
+    var ok = function () { notif.ready = true; notif.err = ''; var em = lsGet('ab_em'); if (em) { try { OS.login(em); } catch (e) {} } notifTags(OS); cb && cb(OS); };
     if (notif.ready) { cb && cb(OS); return; }
-    notif.ready = true;
-    OS.init({ appId: NOTIF_APP_ID, serviceWorkerPath: 'sw.js', serviceWorkerParam: { scope: location.pathname.replace(/[^\/]*$/, '') }, notifyButton: { enable: false }, allowLocalhostAsSecureOrigin: true })
-      .then(function () { var em = lsGet('ab_em'); if (em) OS.login(em); notifTags(OS); notif.err = ''; cb && cb(OS); }).catch(function (e) { notifErr('init : ' + (e && e.message || e)); });
+    if (!notif.initP) notif.initP = OS.init({ appId: NOTIF_APP_ID, serviceWorkerPath: 'sw.js', serviceWorkerParam: { scope: location.pathname.replace(/[^\/]*$/, '') }, notifyButton: { enable: false }, allowLocalhostAsSecureOrigin: true });
+    Promise.resolve(notif.initP).then(ok).catch(function (e) { var m = String(e && e.message || e); if (/already initialized/i.test(m)) { ok(); return; } notif.initP = null; notifErr('init : ' + m); });
   });
   if (!notif.loading) {
     notif.loading = true; var sc = document.createElement('script'); sc.src = 'https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.page.js'; sc.defer = true;
