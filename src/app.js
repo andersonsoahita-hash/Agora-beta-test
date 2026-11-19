@@ -31,7 +31,7 @@ function persist() {
   saveTimer = setTimeout(function () {
   }, 800);
 }
-function touchDay() { var t = today(); if (S.days.indexOf(t) < 0) { S.days.push(t); S.days = S.days.slice(-120); } }
+function touchDay() { var t = today(); if (S.days.indexOf(t) < 0) { S.days.push(t); S.days = S.days.slice(-120); } try { notifSync(); } catch (e) {} }
 function streak() {
   var n = 0, d = new Date();
   for (;;) { var k = d.toISOString().slice(0, 10); if (S.days.indexOf(k) >= 0) { n++; d.setDate(d.getDate() - 1); } else if (n === 0 && k === today()) { d.setDate(d.getDate() - 1); } else break; }

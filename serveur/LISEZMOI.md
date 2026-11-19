@@ -8,3 +8,10 @@
 6. Donne l'URL /exec : elle sera branchée dans l'appli de test.
 
 
+
+## Notifications (défi du jour, série, relance)
+1. Crée un compte gratuit sur onesignal.com, puis une app « Web » (Typical Site). Site : l'adresse GitHub Pages d'Agora test, icône : `icons/icon-512.png`.
+2. Copie l'**App ID** (à me donner : il est public) et la **REST API Key** (secrète, ne la partage nulle part sauf ici).
+3. Apps Script > Paramètres du projet > Propriétés du script : `OS_APP_ID` et `OS_API_KEY`.
+4. Colle le nouveau `Code.gs`, lance `installerNotifs` une fois, puis Déployer > Nouvelle version.
+5. Envois automatiques : 12 h relance (3 jours d'absence), 18 h défi du jour (si pas encore entraîné), 20 h série en jeu. Heure de Paris.

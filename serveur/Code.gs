@@ -177,3 +177,32 @@ function doPost(e) {
   finally { lock.releaseLock(); }
 }
 function doGet() { return rep_({ ok: true, service: 'Agora test' }); }
+
+/* ================= NOTIFICATIONS (OneSignal) =================
+   Réglages > Propriétés du script : OS_APP_ID (App ID) et OS_API_KEY (clé « REST API Key »).
+   Lancer UNE fois « installerNotifs » : crée 3 envois automatiques par jour.
+   L'appli envoie à OneSignal deux étiquettes : last_day (dernier jour d'entraînement, UTC) et streak. */
+function jourUTC_(decalage) { return Utilities.formatDate(new Date(Date.now() + (decalage || 0) * 86400000), 'UTC', 'yyyy-MM-dd'); }
+function notif_(titre, texte, filtres) {
+  var P = PropertiesService.getScriptProperties(), id = P.getProperty('OS_APP_ID'), cle = P.getProperty('OS_API_KEY');
+  if (!id || !cle) { Logger.log('OS_APP_ID / OS_API_KEY manquants'); return; }
+  var r = UrlFetchApp.fetch('https://api.onesignal.com/notifications', { method: 'post', contentType: 'application/json', muteHttpExceptions: true,
+    headers: { Authorization: 'Key ' + cle },
+    payload: JSON.stringify({ app_id: id, target_channel: 'push', filters: filtres, headings: { fr: titre, en: titre }, contents: { fr: texte, en: texte }, ttl: 43200 }) });
+  Logger.log(r.getResponseCode() + ' ' + r.getContentText().slice(0, 200));
+}
+function notifDefi() { // 18 h : défi du jour, seulement à ceux qui ne se sont pas encore entraînés aujourd'hui
+  notif_('Ton défi du jour t’attend', 'Quelques minutes de parole suffisent. Ouvre Agora et relève-le.', [{ field: 'tag', key: 'ab', relation: '=', value: '1' }, { field: 'tag', key: 'last_day', relation: '!=', value: jourUTC_(0) }]);
+}
+function notifSerie() { // 20 h : série en jeu (entraîné hier, pas encore aujourd'hui, série d'au moins 2 jours)
+  notif_('Ta série est en jeu', 'Une courte séance ce soir et ta série continue. Ne la laisse pas tomber.', [{ field: 'tag', key: 'last_day', relation: '=', value: jourUTC_(-1) }, { field: 'tag', key: 'streak', relation: '>', value: '1' }]);
+}
+function notifRelance() { // 12 h : relance après 3 jours sans s'entraîner
+  notif_('Ta voix te manque', 'Ça fait trois jours. Reprends avec un exercice court, tu verras vite la différence.', [{ field: 'tag', key: 'last_day', relation: '=', value: jourUTC_(-3) }]);
+}
+function installerNotifs() {
+  ScriptApp.getProjectTriggers().forEach(function (t) { if (['notifDefi', 'notifSerie', 'notifRelance'].indexOf(t.getHandlerFunction()) >= 0) ScriptApp.deleteTrigger(t); });
+  ScriptApp.newTrigger('notifRelance').timeBased().everyDays(1).atHour(12).inTimezone('Europe/Paris').create();
+  ScriptApp.newTrigger('notifDefi').timeBased().everyDays(1).atHour(18).inTimezone('Europe/Paris').create();
+  ScriptApp.newTrigger('notifSerie').timeBased().everyDays(1).atHour(20).inTimezone('Europe/Paris').create();
+}
