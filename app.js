@@ -1,4 +1,4 @@
-window.AGORA_BUILD='4827abd8b2';
+window.AGORA_BUILD='9816bba618';
 /* ============================================================
    Analyse de la voix (signal) et du texte (transcription)
    Tout se calcule dans la page. Aucun audio n'est envoyé nulle part.
@@ -3673,6 +3673,7 @@ var NOTIF_APP_ID = '4462d7a7-1b26-4d5f-aa5b-1ae7bc135057'; /* ← colle ici l'Ap
 var notif = { ready: false, loading: false };
 function notifOk() { return !!NOTIF_APP_ID && ('Notification' in window) && ('serviceWorker' in navigator) && (!/iPad|iPhone|iPod/.test(navigator.userAgent) || isStandalone()); }
 function notifState() { if (!NOTIF_APP_ID) return 'config'; if (!('Notification' in window)) return 'non'; if (/iPad|iPhone|iPod/.test(navigator.userAgent) && !isStandalone()) return 'ios'; return Notification.permission; }
+function notifErr(m) { notif.err = String(m || 'erreur inconnue').slice(0, 160); notif.ready = false; notif.busy = false; if (view.tab === 'settings') { try { render(); } catch (e) {} } }
 function notifLoad(cb) {
   if (!notifOk()) return;
   window.OneSignalDeferred = window.OneSignalDeferred || [];
@@ -3680,16 +3681,25 @@ function notifLoad(cb) {
     if (notif.ready) { cb && cb(OS); return; }
     notif.ready = true;
     OS.init({ appId: NOTIF_APP_ID, serviceWorkerPath: 'sw.js', serviceWorkerParam: { scope: location.pathname.replace(/[^\/]*$/, '') }, notifyButton: { enable: false }, allowLocalhostAsSecureOrigin: true })
-      .then(function () { var em = lsGet('ab_em'); if (em) OS.login(em); notifTags(OS); cb && cb(OS); }).catch(function () { notif.ready = false; });
+      .then(function () { var em = lsGet('ab_em'); if (em) OS.login(em); notifTags(OS); notif.err = ''; cb && cb(OS); }).catch(function (e) { notifErr('init : ' + (e && e.message || e)); });
   });
-  if (!notif.loading) { notif.loading = true; var sc = document.createElement('script'); sc.src = 'https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.page.js'; sc.defer = true; document.head.appendChild(sc); }
+  if (!notif.loading) {
+    notif.loading = true; var sc = document.createElement('script'); sc.src = 'https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.page.js'; sc.defer = true;
+    sc.onerror = function () { notif.loading = false; notifErr('le service de notifications n’a pas pu se charger (réseau ou blocage)'); };
+    document.head.appendChild(sc);
+    setTimeout(function () { if (!window.OneSignal && notif.busy) { notif.loading = false; notifErr('délai dépassé au chargement du service'); } }, 10000);
+  }
 }
 function notifTags(OS) {
   try { var d = S.days || []; OS.User.addTags({ streak: String(streak()), last_day: d.length ? d[d.length - 1] : '2000-01-01', ab: '1' }); } catch (e) {}
 }
 function notifSync() { if (notif.ready && window.OneSignalDeferred) window.OneSignalDeferred.push(function (OS) { notifTags(OS); }); }
 function notifEnable() {
-  notifLoad(function (OS) { OS.Notifications.requestPermission().then(function () { try { OS.User.PushSubscription.optIn(); } catch (e) {} notifTags(OS); if (view.tab === 'settings') render(); }).catch(function () { if (view.tab === 'settings') render(); }); });
+  notif.err = ''; notif.busy = true; if (view.tab === 'settings') render();
+  notifLoad(function (OS) {
+    OS.Notifications.requestPermission().then(function () { try { OS.User.PushSubscription.optIn(); } catch (e) {} notifTags(OS); notif.busy = false; if (Notification.permission !== 'granted') notif.err = 'permission non accordée (' + Notification.permission + ')'; if (view.tab === 'settings') render(); })
+      .catch(function (e) { notifErr('permission : ' + (e && e.message || e)); });
+  });
 }
 function notifDisable() { notifLoad(function (OS) { try { OS.User.PushSubscription.optOut(); } catch (e) {} lsSet('ab_notif_off', '1'); if (view.tab === 'settings') render(); }); }
 function notifCard() {
@@ -3699,7 +3709,8 @@ function notifCard() {
   if (st === 'ios') return h + '<p class="small" style="margin:0">Sur iPhone : ouvre le menu Partager de Safari, choisis « Sur l’écran d’accueil », puis rouvre Agora depuis l’icône pour activer les notifications.</p></div>';
   if (st === 'denied') return h + '<p class="small" style="margin:0">Les notifications sont bloquées pour Agora : autorise-les dans les réglages de ton téléphone ou du navigateur.</p></div>';
   if (st === 'non') return h + '<p class="small" style="margin:0">Ce navigateur ne gère pas les notifications.</p></div>';
-  h += '<div class="row">' + (on ? '<span class="tag tag-ok">Activées</span><button class="btn small ghost" data-act="notif-off">Désactiver</button>' : '<button class="btn small" data-act="notif-on">Activer les notifications</button>') + '</div></div>';
+  if (notif.err) h += '<p class="small tag-bad" style="margin:0">Impossible d’activer : ' + esc(notif.err) + '</p>';
+  h += '<div class="row">' + (on ? '<span class="tag tag-ok">Activées</span><button class="btn small ghost" data-act="notif-off">Désactiver</button>' : '<button class="btn small" data-act="notif-on"' + (notif.busy ? ' disabled' : '') + '>' + (notif.busy ? 'Un instant…' : (notif.err ? 'Réessayer' : 'Activer les notifications')) + '</button>') + '</div></div>';
   return h;
 }
 
