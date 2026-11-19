@@ -1,4 +1,4 @@
-window.AGORA_BUILD='f3dc75f353';
+window.AGORA_BUILD='4827abd8b2';
 /* ============================================================
    Analyse de la voix (signal) et du texte (transcription)
    Tout se calcule dans la page. Aucun audio n'est envoyé nulle part.
@@ -3669,7 +3669,7 @@ function gateInit() {
 
 
 /* ---------- notifications (OneSignal) : défi du jour, série, relance ---------- */
-var NOTIF_APP_ID = ''; /* ← colle ici l'App ID OneSignal (public) */
+var NOTIF_APP_ID = '4462d7a7-1b26-4d5f-aa5b-1ae7bc135057'; /* ← colle ici l'App ID OneSignal (public) */
 var notif = { ready: false, loading: false };
 function notifOk() { return !!NOTIF_APP_ID && ('Notification' in window) && ('serviceWorker' in navigator) && (!/iPad|iPhone|iPod/.test(navigator.userAgent) || isStandalone()); }
 function notifState() { if (!NOTIF_APP_ID) return 'config'; if (!('Notification' in window)) return 'non'; if (/iPad|iPhone|iPod/.test(navigator.userAgent) && !isStandalone()) return 'ios'; return Notification.permission; }

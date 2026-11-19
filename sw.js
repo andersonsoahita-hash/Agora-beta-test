@@ -1,6 +1,6 @@
 /* Agora — service worker (généré par build.js, ne pas éditer à la main) */
 try { importScripts('https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.sw.js'); } catch (e) {} /* notifications push */
-const CACHE = 'abeta-f3dc75f353';
+const CACHE = 'abeta-4827abd8b2';
 const FILES = [
  "./",
  "index.html",
