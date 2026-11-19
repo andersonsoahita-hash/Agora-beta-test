@@ -300,7 +300,6 @@ function homeBanners() {
   }
   if (pwa.updateReady) h += '<div class="card banner"><b>Nouvelle version prête</b><p class="muted small" style="margin:4px 0 8px">Ton travail est conservé.</p><button class="btn small" data-act="update-now">Mettre à jour</button></div>';
   if (needBackup()) h += '<div class="card banner"><b>Pense à sauvegarder</b><p class="muted small" style="margin:4px 0 8px">Ta dernière sauvegarde date de plus de 14 jours' + (S.lastExport ? ' (' + esc(fmtDay(S.lastExport)) + ')' : ' ou n’a jamais été faite') + '.</p><div class="row"><button class="btn small" data-act="export-data">Sauvegarder maintenant</button><button class="btn small ghost" data-act="bk-later">Plus tard</button></div></div>';
-  if (notifState() === 'default' && lsGet('ab_notif_ask') !== 'x' && lsGet('ab_ok') === '1') h += '<div class="card banner"><b>Active les notifications</b><p class="muted small" style="margin:4px 0 8px">Ton défi du jour et ta série, rappelés au bon moment. Tu peux les couper quand tu veux.</p><div class="row"><button class="btn small" data-act="notif-on">Activer</button><button class="btn small ghost" data-act="notif-later">Plus tard</button></div></div>';
   if (!isStandalone() && lsGet('ab_inst_dismiss') !== '1') {
     if (pwa.installEvt) h += '<div class="card banner"><b>Installer Agora</b><p class="muted small" style="margin:4px 0 8px">Pour l’ouvrir comme une application, même hors ligne.</p><div class="row"><button class="btn small" data-act="install">Installer</button><button class="btn small ghost" data-act="inst-hide">Masquer</button></div></div>';
     else if (isIOS()) h += '<div class="card banner"><b>Installer Agora sur l’iPhone</b><p class="muted small" style="margin:4px 0 8px">Dans Safari : bouton Partager, puis « Sur l’écran d’accueil ».</p><button class="btn small ghost" data-act="inst-hide">Masquer</button></div>';
@@ -402,7 +401,6 @@ function vSettings() {
   h += '<button class="btn small ghost" style="align-self:flex-start" data-act="imp-rollback">Revenir à la copie de sécurité d’avant import</button>';
   h += '<hr class="hr"><div class="small" id="stoInfo">Calcul de l’espace utilisé…</div><div class="row"><button class="btn small ghost" data-act="persist-ask">Protéger le stockage</button></div><p class="muted small" style="margin:0">Sur iPhone, installe l’appli sur l’écran d’accueil : Safari peut effacer les données d’un site rarement ouvert, pas celles d’une appli installée.</p></div>';
   h += '<div class="card stack"><h3>Corbeille (24 h)</h3><p class="muted small" style="margin:0">Ce que tu supprimes (enregistrement, preuve, séance, progression d’une leçon) reste ici 24 h avant d’être effacé pour de bon.</p><div id="trashList" class="stack"></div></div>';
-  h += notifCard();
   h += '<div class="card stack"><h3>Apparence</h3><div class="row">' + [['auto', 'Automatique'], ['light', 'Clair'], ['dark', 'Sombre']].map(function (x) { return '<button class="chip' + (tp === x[0] ? ' on' : '') + '" data-act="theme-set" data-v="' + x[0] + '">' + x[1] + '</button>'; }).join('') + '</div></div>';
   h += '<div class="card stack"><h3>Voix et transcription</h3><p class="muted small" style="margin:0">L’analyse de ta voix (hauteur, volume, pauses, rythme) est faite <b>sur ton téléphone</b> : l’audio ne quitte pas l’appareil. Pour analyser tes mots, tu écris ou colles la transcription.</p><label class="row" style="flex-wrap:nowrap;align-items:flex-start;gap:10px"><input type="checkbox" data-act="sr-toggle"' + (S.set && S.set.sr ? ' checked' : '') + (SR_API ? '' : ' disabled') + ' style="margin-top:4px"><span class="small"><b>Transcription automatique (en ligne)</b><br><span class="muted">Optionnelle. Elle utilise le service de reconnaissance vocale de ton navigateur, qui envoie le son à des serveurs distants. ' + (SR_API ? 'Désactivée par défaut.' : 'Non disponible sur ce navigateur.') + '</span></span></label></div>';
   h += '<div class="card stack" id="whyEdit"><h3>Page « Pourquoi Agora ? »</h3><textarea id="whyText" style="min-height:160px" maxlength="6000">' + esc(S.why || WHY_DEFAULT.join('\n\n').replace(/\*\*/g, '')) + '</textarea><p class="muted small" style="margin:0">Sépare les paragraphes par une ligne vide. <b>**gras**</b> est accepté.</p><div class="row"><button class="btn small" data-act="why-save">Enregistrer</button><button class="btn small ghost" data-act="why-reset">Rétablir le texte d’origine</button></div></div>';
@@ -467,9 +465,6 @@ function pwaAct(act, v, el, ev) {
     case 'bk-later': lsSet('ab_bk_dismiss', today()); render(); return true;
     case 'avis-send': avisSend(); return true;
     case 'update-check': swCheck(); return true;
-    case 'notif-on': lsSet('ab_notif_off', ''); lsSet('ab_notif_ask', 'x'); notifEnable(); return true;
-    case 'notif-off': notifDisable(); return true;
-    case 'notif-later': lsSet('ab_notif_ask', 'x'); render(); return true;
     case 'update-now': swApply(); return true;
     case 'export-data': exportState(); if (view.tab === 'home' || view.tab === 'settings') setTimeout(render, 50); return true;
     case 'export-recs': exportRecs(); return true;
@@ -659,53 +654,6 @@ function gateInit() {
   document.addEventListener('visibilitychange', function () { if (document.visibilityState === 'visible') { try { if (pwa.swReg && navigator.onLine !== false) pwa.swReg.update().catch(function () {}); } catch (e) {} pwa.updDismissed = false; if (lsGet('ab_tok')) gateCheck(); } });
 }
 
-
-/* ---------- notifications (OneSignal) : défi du jour, série, relance ---------- */
-var NOTIF_APP_ID = ''; /* notifications en pause. App ID OneSignal à remettre ici pour les réactiver : 4462d7a7-1b26-4d5f-aa5b-1ae7bc135057 */ /* ← colle ici l'App ID OneSignal (public) */
-var notif = { ready: false, loading: false };
-function notifOk() { return !!NOTIF_APP_ID && ('Notification' in window) && ('serviceWorker' in navigator) && (!/iPad|iPhone|iPod/.test(navigator.userAgent) || isStandalone()); }
-function notifState() { if (!NOTIF_APP_ID) return 'config'; if (!('Notification' in window)) return 'non'; if (/iPad|iPhone|iPod/.test(navigator.userAgent) && !isStandalone()) return 'ios'; return Notification.permission; }
-function notifErr(m) { notif.err = String(m || 'erreur inconnue').slice(0, 160) + ' [v' + String(BUILD).slice(0, 6) + ']'; notif.ready = false; notif.busy = false; if (view.tab === 'settings') { try { render(); } catch (e) {} } }
-function notifLoad(cb) {
-  if (!notifOk()) return;
-  window.OneSignalDeferred = window.OneSignalDeferred || [];
-  window.OneSignalDeferred.push(function (OS) {
-    var ok = function () { notif.ready = true; notif.err = ''; var em = lsGet('ab_em'); if (em) { try { OS.login(em); } catch (e) {} } notifTags(OS); cb && cb(OS); };
-    if (notif.ready) { cb && cb(OS); return; }
-    if (!notif.initP) notif.initP = OS.init({ appId: NOTIF_APP_ID, serviceWorkerPath: 'sw.js', serviceWorkerParam: { scope: location.pathname.replace(/[^\/]*$/, '') }, notifyButton: { enable: false }, allowLocalhostAsSecureOrigin: true });
-    Promise.resolve(notif.initP).then(ok).catch(function (e) { var m = String(e && e.message || e); if (/already initialized/i.test(m)) { ok(); return; } notif.initP = null; notifErr('init : ' + m); });
-  });
-  if (!notif.loading) {
-    notif.loading = true; var sc = document.createElement('script'); sc.src = 'https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.page.js'; sc.defer = true;
-    sc.onerror = function () { notif.loading = false; notifErr('le service de notifications n’a pas pu se charger (réseau ou blocage)'); };
-    document.head.appendChild(sc);
-    setTimeout(function () { if (!window.OneSignal && notif.busy) { notif.loading = false; notifErr('délai dépassé au chargement du service'); } }, 10000);
-  }
-}
-function notifTags(OS) {
-  try { var d = S.days || []; OS.User.addTags({ streak: String(streak()), last_day: d.length ? d[d.length - 1] : '2000-01-01', ab: '1' }); } catch (e) {}
-}
-function notifSync() { if (notif.ready && window.OneSignalDeferred) window.OneSignalDeferred.push(function (OS) { notifTags(OS); }); }
-function notifEnable() {
-  notif.err = ''; notif.busy = true; if (view.tab === 'settings') render();
-  notifLoad(function (OS) {
-    OS.Notifications.requestPermission().then(function () { try { OS.User.PushSubscription.optIn(); } catch (e) {} notifTags(OS); notif.busy = false; if (Notification.permission !== 'granted') notif.err = 'permission non accordée (' + Notification.permission + ')'; if (view.tab === 'settings') render(); })
-      .catch(function (e) { notifErr('permission : ' + (e && e.message || e)); });
-  });
-}
-function notifDisable() { notifLoad(function (OS) { try { OS.User.PushSubscription.optOut(); } catch (e) {} lsSet('ab_notif_off', '1'); if (view.tab === 'settings') render(); }); }
-function notifCard() {
-  var st = notifState(), off = lsGet('ab_notif_off') === '1', on = st === 'granted' && !off, h = '<div class="card stack"><h3>Notifications</h3>';
-  if (st === 'config') return '';
-  h += '<p class="muted small" style="margin:0">Reçois ton défi du jour, un rappel pour garder ta série et une relance si tu t’éloignes. Tu peux les couper à tout moment.</p>';
-  if (st === 'ios') return h + '<p class="small" style="margin:0">Sur iPhone : ouvre le menu Partager de Safari, choisis « Sur l’écran d’accueil », puis rouvre Agora depuis l’icône pour activer les notifications.</p></div>';
-  if (st === 'denied') return h + '<p class="small" style="margin:0">Les notifications sont bloquées pour Agora : autorise-les dans les réglages de ton téléphone ou du navigateur.</p></div>';
-  if (st === 'non') return h + '<p class="small" style="margin:0">Ce navigateur ne gère pas les notifications.</p></div>';
-  if (notif.err) h += '<p class="small tag-bad" style="margin:0">Impossible d’activer : ' + esc(notif.err) + '</p>';
-  h += '<div class="row">' + (on ? '<span class="tag tag-ok">Activées</span><button class="btn small ghost" data-act="notif-off">Désactiver</button>' : '<button class="btn small" data-act="notif-on"' + (notif.busy ? ' disabled' : '') + '>' + (notif.busy ? 'Un instant…' : (notif.err ? 'Réessayer' : 'Activer les notifications')) + '</button>') + '</div></div>';
-  return h;
-}
-
 /* ---------- suivi des fonctions utilisées (envoyé à Stephen, testeur connecté seulement) ---------- */
 var TRK = { q: [], last: '', n: {
   'écran:home': 'Écran Accueil', 'écran:studio': 'Écran Studio', 'écran:course': 'Écran Cours', 'écran:orators': 'Écran Orateurs', 'écran:prep': 'Écran Préparer', 'écran:proofs': 'Écran Preuves', 'écran:settings': 'Écran Réglages',
@@ -747,7 +695,7 @@ function pwaBoot() {
   window.addEventListener('appinstalled', function () { pwa.installEvt = null; render(); });
   trashPurge(); setInterval(trashPurge, 3600000);
   swInit();
-  gateInit(); trkInit(); setTimeout(function () { if (NOTIF_APP_ID && ('Notification' in window) && Notification.permission === 'granted' && lsGet('ab_notif_off') !== '1') notifLoad(); }, 2500);
+  gateInit(); trkInit();
   var cv = byIdEl('cover');
   if (cv) {
     var seen = false; try { seen = sessionStorage.getItem('ab_cover') === '1'; } catch (e) {}
