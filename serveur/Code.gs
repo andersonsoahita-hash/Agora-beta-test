@@ -196,7 +196,7 @@ function pick_(a, n) { return a[((n % a.length) + a.length) % a.length]; }
 function numJour_() { return Math.floor((Date.now() + 3600000) / 86400000); } /* même formule que l'appli (heure de Paris) */
 function notifDefi() { // 18 h : le vrai défi du jour, seulement à ceux qui ne se sont pas encore entraînés aujourd'hui
   var n = numJour_(), t = pick_(DEFIS_, n), suj = t.s.length ? t.s[n % t.s.length] : '';
-  var txt = suj ? [t.n + ' : « ' + suj + ' ». Quelques minutes suffisent.', 'Au programme ce soir : ' + suj + '. Lance-toi.', 'Ton défi : ' + t.n.toLowerCase() + ', sujet « ' + suj + ' ».'] : [t.n + ' : ton défi du jour t’attend.', 'Ce soir, ' + t.n.toLowerCase() + '. Quelques minutes suffisent.'];
+  var txt = suj ? [t.n + ' : « ' + suj + ' ». Quelques minutes suffisent.', 'Au programme ce soir : « ' + suj + ' » Lance-toi.', 'Ton défi : ' + t.n.toLowerCase() + ', sujet « ' + suj + ' ».'] : [t.n + ' : ton défi du jour t’attend.', 'Ce soir, ' + t.n.toLowerCase() + '. Quelques minutes suffisent.'];
   notif_(pick_(['Ton défi du jour', 'Défi du jour', 'Prêt pour ton défi ?'], n), pick_(txt, n), [{ field: 'tag', key: 'ab', relation: '=', value: '1' }, { field: 'tag', key: 'last_day', relation: '!=', value: jourUTC_(0) }]);
 }
 function notifSerie() { // 20 h : série en jeu (entraîné hier, pas encore aujourd'hui, série d'au moins 2 jours)
