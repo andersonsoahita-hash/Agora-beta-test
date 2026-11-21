@@ -9,6 +9,16 @@ var AGAMB = (function () {
     debat:      { name: 'Tendu',      root: 164.8, sc: [0, 1, 3, 5, 7, 8], chord: [0, 7, 12], bpm: 84, wave: 'sawtooth', cut: 900, vol: .7 },
     discours:   { name: 'Solennel',   root: 146.8, sc: [0, 2, 4, 7, 9], chord: [0, 7, 12, 16], bpm: 48, wave: 'sine', cut: 1600, vol: 1 },
     lecture:    { name: 'Solennel',   root: 146.8, sc: [0, 2, 4, 7, 9], chord: [0, 7, 12, 16], bpm: 48, wave: 'sine', cut: 1600, vol: 1 },
+    s_hom: { name: 'Hommage · doux et grave', root: 130.8, sc: [0, 3, 5, 7, 10], chord: [0, 7, 15], bpm: 44, wave: 'sine', cut: 1100, vol: 1 },
+    s_mot: { name: 'Motiver · lumineux et rythmé', root: 196.0, sc: [0, 2, 4, 7, 9], chord: [0, 7, 16], bpm: 88, wave: 'triangle', cut: 2600, vol: 1 },
+    s_con: { name: 'Convaincre · posé, en tension', root: 164.8, sc: [0, 3, 5, 7, 10], chord: [0, 7, 12], bpm: 66, wave: 'triangle', cut: 1300, vol: .9 },
+    s_exp: { name: 'Expliquer · clair et calme', root: 220.0, sc: [0, 2, 4, 7, 9], chord: [0, 7, 16], bpm: 58, wave: 'sine', cut: 1800, vol: .9 },
+    s_rem: { name: 'Remercier · chaleureux', root: 174.6, sc: [0, 2, 4, 5, 7, 9, 11], chord: [0, 7, 16], bpm: 56, wave: 'triangle', cut: 1700, vol: 1 },
+    s_pro: { name: 'Se présenter · léger et dynamique', root: 233.1, sc: [0, 2, 4, 7, 9], chord: [0, 7, 12], bpm: 80, wave: 'triangle', cut: 2400, vol: .9 },
+    s_tra: { name: 'Trac · rassurant et posé', root: 196.0, sc: [0, 2, 4, 7, 9], chord: [0, 7, 12], bpm: 52, wave: 'sine', cut: 1700, vol: 1 },
+    s_voi: { name: 'Souffle · ouvert et ample', root: 155.6, sc: [0, 2, 4, 7, 9], chord: [0, 7, 16], bpm: 50, wave: 'sine', cut: 1900, vol: 1 },
+    s_com: { name: 'Débat · ferme et posé', root: 207.7, sc: [0, 2, 4, 7, 9], chord: [0, 7, 16], bpm: 64, wave: 'triangle', cut: 2000, vol: .9 },
+    s_spe: { name: 'Moments de vie · tendre', root: 185.0, sc: [0, 2, 3, 7, 9], chord: [0, 7, 15], bpm: 70, wave: 'triangle', cut: 1800, vol: .9 },
     express:    { name: 'Concentré',  root: 196.0, sc: [0, 3, 5, 7, 10], chord: [0, 7], bpm: 72, wave: 'sine', cut: 1200, vol: .9 }
   };
   var ctx = null, master = null, nodes = [], timer = 0, cur = null, step = 0;
@@ -24,9 +34,11 @@ var AGAMB = (function () {
     g.gain.setValueAtTime(0.0001, when); g.gain.exponentialRampToValueAtTime(gain, when + .04); g.gain.exponentialRampToValueAtTime(0.0001, when + dur);
     o.connect(g); g.connect(master); o.start(when); o.stop(when + dur + .1);
   }
-  function start(type) {
+  function start(type, seed) {
     stop(true);
-    var m = MOODS[type] || MOODS.argumenter, AC = window.AudioContext || window.webkitAudioContext;
+    var m0 = MOODS[type] || MOODS.argumenter, m = {}; for (var k in m0) m[k] = m0[k];
+    if (seed) { var h = 0; for (var q = 0; q < seed.length; q++) h = (h * 31 + seed.charCodeAt(q)) >>> 0; m.root = m0.root * Math.pow(2, (h % 5 - 2) / 12); m.bpm = Math.round(m0.bpm * (0.94 + (h % 7) * 0.02)); }
+    var AC = window.AudioContext || window.webkitAudioContext;
     if (!AC) return false;
     try { ctx = new AC(); } catch (e) { return false; }
     if (ctx.state === 'suspended') ctx.resume();
@@ -62,5 +74,5 @@ var AGAMB = (function () {
     if (!c) return;
     try { if (!now) { mg.gain.cancelScheduledValues(c.currentTime); mg.gain.setValueAtTime(mg.gain.value, c.currentTime); mg.gain.linearRampToValueAtTime(0, c.currentTime + .6); setTimeout(function () { try { c.close(); } catch (e) {} }, 800); } else c.close(); } catch (e) { try { c.close(); } catch (e2) {} }
   }
-  return { start: start, stop: stop, on: function () { return !!ctx; }, name: function (t) { return (MOODS[t] || MOODS.argumenter).name; } };
+  return { start: start, stop: stop, on: function () { return !!ctx; }, discKey: function (d) { return 's_' + d.s; }, name: function (t) { return (MOODS[t] || MOODS.argumenter).name; } };
 })();
