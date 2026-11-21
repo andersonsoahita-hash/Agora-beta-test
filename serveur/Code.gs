@@ -177,3 +177,11 @@ function doPost(e) {
   finally { lock.releaseLock(); }
 }
 function doGet() { return rep_({ ok: true, service: 'Agora test' }); }
+
+/* ---------- clé admin visible dans le Journal d'exécution (sans fenêtre) ---------- */
+function cleVisible() {
+  var p = PropertiesService.getScriptProperties();
+  var c = p.getProperty('CLE_ADMIN');
+  if (!c || /^AG-/.test(c)) { c = Utilities.getUuid(); p.setProperty('CLE_ADMIN', c); }
+  Logger.log('CLE ADMIN : ' + c);
+}
