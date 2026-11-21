@@ -150,6 +150,8 @@ details.more>.stack{padding-bottom:14px}
 
 .exsel{display:flex;align-items:center;gap:10px;flex-wrap:wrap}.exsel b{flex:1;font-size:1.05rem;min-width:0}.exsel .excg{color:var(--accent);font-size:.9rem}
 
+.ambbtn{display:flex;align-items:center;gap:10px;flex-wrap:wrap;text-align:left}.ambbtn b{flex:1;min-width:0}.ambbtn.on{border-color:var(--accent)}
+
 /* ===== Polices hébergées (aucun appel externe) ===== */
 @font-face{font-family:'Dancing Script';font-weight:700;font-style:normal;font-display:swap;src:url(fonts/dancing-script-latin-700-normal.woff2) format('woff2')}
 @font-face{font-family:'DM Sans';font-weight:400;font-style:normal;font-display:swap;src:url(fonts/dm-sans-latin-400-normal.woff2) format('woff2')}

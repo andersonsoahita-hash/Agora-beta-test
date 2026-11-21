@@ -52,7 +52,7 @@ var TABS = [
   ['proofs', 'Preuves', '<circle cx="11" cy="11" r="7"/><path d="M21 21l-5-5"/>']
 ];
 var view = { tab: 'home', sub: null };
-function go(tab, sub) { view = { tab: tab, sub: sub || null }; render(); window.scrollTo(0, 0); }
+function go(tab, sub) { if (tab !== 'studio') AGAMB.stop(); view = { tab: tab, sub: sub || null }; render(); window.scrollTo(0, 0); }
 function drawTabs() {
   tabbar.innerHTML = TABS.map(function (t) {
     return '<button data-act="tab" data-v="' + t[0] + '" class="' + (view.tab === t[0] ? 'on' : '') + '" aria-label="' + t[1] + '"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">' + t[2] + '</svg>' + t[1] + '</button>';
@@ -124,7 +124,7 @@ function gestCardHtml() {
   var g = gestHist()[0]; if (!g) return '';
   return '<div class="card"><div class="eyebrow">Dernière Gestuelle · ' + esc(String(g.date).slice(0, 10)) + '</div><h3>' + g.score + ' / 100</h3>' + (g.prio && g.prio.length ? '<p class="muted small" style="margin:0 0 8px">À corriger : ' + g.prio.map(esc).join(' · ') + '</p>' : '') + '<button class="btn small ghost" data-act="gest-open">Refaire un essai</button></div>';
 }
-function setExType(v) { if (st.rec || st.timerOn) return; st.type = v; st.screen = 'ex'; st.exOpen = false; if (v === 'express') { if (ex.phase === 'speak') exEnterSpeak(); } else if (D.durations.indexOf(st.dur) < 0) st.dur = 60; newSubject(); st.ended = false; st.recSec = 0; }
+function setExType(v) { if (st.rec || st.timerOn) return; var wasAmb = AGAMB.on(); st.type = v; if (wasAmb) AGAMB.start(v); st.screen = 'ex'; st.exOpen = false; if (v === 'express') { if (ex.phase === 'speak') exEnterSpeak(); } else if (D.durations.indexOf(st.dur) < 0) st.dur = 60; newSubject(); st.ended = false; st.recSec = 0; }
 var CATS = [
   ['studio', 'Parler', 'T’enregistrer et analyser ta voix et tes mots', ''],
   ['gest', 'Gestuelle', 'Te filmer : mains, posture, regard, contradictions', ''],
@@ -242,7 +242,7 @@ function vStudio() {
     if (!st.vid) o += '<div class="card stack"><div class="eyebrow">Transcription (pour analyser les mots)</div><textarea id="trIn" placeholder="' + (SR_API && CAN_MIC && S.set && S.set.sr ? 'Elle se remplit pendant l’enregistrement. Tu peux la corriger.' : 'Écris ou colle ici le texte de ce que tu as dit. Sans texte, seule la voix est analysée.') + '">' + esc(st.transcript) + '</textarea></div>';
     return o + '</div>';
   }
-  var h = '<div class="top"><h1>Studio</h1></div><div class="stack">' + gestHero() + '<button class="card tap exsel" data-act="st-screen" data-v="list"><span class="eyebrow">Exercice</span><b>' + esc(curEx ? curEx.nom : 'Choisir') + '</b><span class="excg">Changer ›</span></button>';
+  var h = '<div class="top"><h1>Studio</h1></div><div class="stack">' + gestHero() + '<button class="card tap exsel" data-act="st-screen" data-v="list"><span class="eyebrow">Exercice</span><b>' + esc(curEx ? curEx.nom : 'Choisir') + '</b><span class="excg">Changer ›</span></button><button class="card tap ambbtn' + (AGAMB.on() ? ' on' : '') + '" data-act="amb-toggle" aria-pressed="' + (AGAMB.on() ? 'true' : 'false') + '"><span>' + (AGAMB.on() ? '🎵' : '🔇') + '</span><b>Ambiance sonore · ' + AGAMB.name(st.type) + '</b><span class="muted small">' + (AGAMB.on() ? 'Activée, coupée quand tu enregistres' : 'Pour te mettre dans l’état d’esprit') + '</span></button>';
   if (st.type === 'lecture') return h + '<div class="card stack"><div class="eyebrow">Avec la caméra</div><p class="muted small" style="margin:0">Lis un discours prêt à l’emploi au prompteur en te filmant : gestes, posture, regard et voix sont analysés.</p><button class="btn" data-act="gest-lec">🎥 Lire un discours avec la caméra</button></div>' + AGDISC.pickerHTML() + '</div>';
   h += '<div class="card stack"><div class="eyebrow">Prépare-toi</div>';
   if (st.type !== 'express') h += '<div class="row">' + D.durations.map(function (d) { return '<button class="chip' + (d === st.dur ? ' on' : '') + '" data-act="st-dur" data-v="' + d + '">' + durLabel(d) + '</button>'; }).join('') + '</div>';
@@ -610,9 +610,9 @@ document.addEventListener('click', function (ev) {
   switch (act) {
     case 'tab': go(v); break;
     case 'vid-set': st.vid = v === '1'; try { localStorage.setItem('ab_vid', st.vid ? '1' : '0'); } catch (e) {} render(); break;
-    case 'gest-exo': gestLaunch({ exo: gestExoOpts() }); break;
+    case 'gest-exo': AGAMB.stop(); gestLaunch({ exo: gestExoOpts() }); break;
     case 'ex-go': view = { tab: 'studio', sub: null }; setExType(v); render(); window.scrollTo(0, 0); break;
-    case 'gest-open': gestLaunch({}); break;
+    case 'gest-open': AGAMB.stop(); gestLaunch({}); break;
     case 'gest-lec': gestLaunch({ exo: { type: 'lecture', nom: 'Discours à jouer', sujet: '', stance: '', dur: 0 } }); break;
     case 'gest-view': gestLaunch({ open: v }); break;
     case 'reco': var g = JSON.parse(v); go(g[0], g[1]); break;
@@ -624,9 +624,10 @@ document.addEventListener('click', function (ev) {
     case 'st-type': setExType(v); render(); window.scrollTo(0, 0); break;
     case 'st-dur': if (st.rec || st.timerOn) break; st.dur = +v; st.ended = false; st.recSec = 0; render(); break;
     case 'st-new': newSubject(); render(); break;
-    case 'rec-toggle': if (!st.rec) objPrime(); st.rec ? endTimer(false) : startRec(); break;
+    case 'amb-toggle': if (AGAMB.on()) AGAMB.stop(); else AGAMB.start(st.type); render(); break;
+    case 'rec-toggle': AGAMB.stop(); if (!st.rec) objPrime(); st.rec ? endTimer(false) : startRec(); break;
     case 'chrono-toggle': if (st.timerOn) endTimer(false); else { beep0(); startTimer(); refreshRec(); } break;
-    case 'analyse': doAnalyse(); break;
+    case 'analyse': AGAMB.stop(); doAnalyse(); break;
     case 'back': view = { tab: view.tab === 'studio' || view.tab === 'settings' ? 'home' : view.tab, sub: null }; render(); break;
     case 'again': view = { tab: 'studio', sub: null }; render(); break;
     case 'lesson': quizState = null; go('course', v); break;

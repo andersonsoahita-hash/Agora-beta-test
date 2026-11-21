@@ -149,3 +149,5 @@ details.more>.stack{padding-bottom:14px}
 .tcol{flex-direction:column;align-items:flex-start;gap:2px}
 
 .exsel{display:flex;align-items:center;gap:10px;flex-wrap:wrap}.exsel b{flex:1;font-size:1.05rem;min-width:0}.exsel .excg{color:var(--accent);font-size:.9rem}
+
+.ambbtn{display:flex;align-items:center;gap:10px;flex-wrap:wrap;text-align:left}.ambbtn b{flex:1;min-width:0}.ambbtn.on{border-color:var(--accent)}
