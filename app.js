@@ -1,4 +1,4 @@
-window.AGORA_BUILD='97750f6e57';
+window.AGORA_BUILD='ee221fd4ea';
 /* ============================================================
    Analyse de la voix (signal) et du texte (transcription)
    Tout se calcule dans la page. Aucun audio n'est envoyé nulle part.
@@ -3224,12 +3224,12 @@ let aCtx=null,aProc=null,aSrc=null,pcmChunks=[],aSR=48000;
 function startPCM(){stopPCM();pcmChunks=[];try{if(!stream||!stream.getAudioTracks().length)return;const AC=window.AudioContext||window.webkitAudioContext;aCtx=new AC();aSR=aCtx.sampleRate;aSrc=aCtx.createMediaStreamSource(new MediaStream(stream.getAudioTracks()));aProc=aCtx.createScriptProcessor(4096,1,1);aProc.onaudioprocess=e=>{if(running)pcmChunks.push(new Float32Array(e.inputBuffer.getChannelData(0)));};const g=aCtx.createGain();g.gain.value=0;aSrc.connect(aProc);aProc.connect(g);g.connect(aCtx.destination);aCtx.resume&&aCtx.resume();}catch(e){console.error(e);}}
 function stopPCM(){try{aProc&&aProc.disconnect();aSrc&&aSrc.disconnect();aCtx&&aCtx.close();}catch(e){}aProc=aSrc=aCtx=null;}
 let raf=0,running=false,an=null,rec=null,chunks=[],recMime='',tStart=0,t0perf=0,transcript=[],frames=[],lastAlert=0,tpRaf=0,recWanted=false,lastVT=-1,frameN=0,lastState='force',lastHands=null,lastHandsT=-9,lastFace=null,lastFaceT=-9,sttObj=null,lastDet=0,calibMiss=0,rotUser=0,calib=false,calibT=0,calibTries=0,calibOk=0;
-let srcA=9/16;
+let srcA=9/16,recTrack=null;
 const PW=()=>{const a=S.fit==='native'?Math.min(.75,Math.max(9/16,srcA)):9/16,ev=n=>Math.round(n/2)*2;return S.orient==='v'?[720,ev(720/a)]:[ev(1280),ev(1280*a)];};
 function applyOrient(){if(vid.videoWidth)srcA=Math.min(vid.videoWidth,vid.videoHeight)/Math.max(vid.videoWidth,vid.videoHeight);const [W,H]=PW();$('#cam').style.aspectRatio=W+'/'+H;if(proc.width!==W||proc.height!==H){proc.width=W;proc.height=H;}$('#cam').classList.toggle('land',S.orient==='h');$('#orBtn').textContent=S.orient==='v'?'Vertical':'Horizontal';resize();}
 function drawProc(){const vw=vid.videoWidth,vh=vid.videoHeight;if(!vw)return;const [W,H]=PW();
   const auto=((vw>vh)===(S.orient==='v'))?1:0,q=(auto+rotUser)%4,sw=(q%2)?vh:vw,sh=(q%2)?vw:vh,sc=Math.max(W/sw,H/sh)*Math.max(1,+S.zoom||1);
-  pctx.save();pctx.fillStyle='#000';pctx.fillRect(0,0,W,H);pctx.translate(W/2,H/2);pctx.rotate(q*Math.PI/2);pctx.drawImage(vid,-vw*sc/2,-vh*sc/2,vw*sc,vh*sc);pctx.restore();}
+  pctx.save();pctx.fillStyle='#000';pctx.fillRect(0,0,W,H);pctx.translate(W/2,H/2);pctx.rotate(q*Math.PI/2);pctx.drawImage(vid,-vw*sc/2,-vh*sc/2,vw*sc,vh*sc);pctx.restore();try{if(recTrack&&recTrack.requestFrame)recTrack.requestFrame();}catch(e){}}
 const rotKey=()=>{const tr=stream&&stream.getVideoTracks()[0],f=(tr&&tr.getSettings&&tr.getSettings().facingMode)||S.cam;return 'agt_rot_'+f+'_'+S.orient+'_'+(vid.videoWidth>vid.videoHeight?'l':'p');};
 function loadRot(){const v=ls.get(rotKey(),null);if(v!==null&&v!==undefined){rotUser=v%4;calib=true;}}
 function saveRot(){ls.set(rotKey(),rotUser);}
@@ -3351,7 +3351,7 @@ $('#go').onclick=async()=>{
   c.classList.remove('on');
   $('#flip').hidden=true;$('#orBtn').hidden=true;$('#rotBtn').hidden=true;$('#camBtn').hidden=true;$('#camSet').hidden=true;
   try{if(window.MediaRecorder&&stream.getAudioTracks){const cand=['video/mp4;codecs=avc1,mp4a.40.2','video/mp4','video/webm;codecs=vp9,opus','video/webm;codecs=vp8,opus','video/webm'];const m=cand.find(x=>MediaRecorder.isTypeSupported(x));
-    const rs=new MediaStream([...proc.captureStream(30).getVideoTracks(),...stream.getAudioTracks()]);rec=new MediaRecorder(rs,m?{mimeType:m,videoBitsPerSecond:2500000}:undefined);recMime=rec.mimeType||m||'video/webm';rec.ondataavailable=e=>{if(e.data&&e.data.size)chunks.push(e.data)};rec.start(1000);}}catch(e){rec=null;console.error(e);}
+    const cs=proc.captureStream();recTrack=cs.getVideoTracks()[0]||null;const rs=new MediaStream([...cs.getVideoTracks(),...stream.getAudioTracks()]);rec=new MediaRecorder(rs,m?{mimeType:m,videoBitsPerSecond:2500000}:undefined);recMime=rec.mimeType||m||'video/webm';rec.ondataavailable=e=>{if(e.data&&e.data.size)chunks.push(e.data)};rec.start(1000);}}catch(e){rec=null;console.error(e);}
   tStart=performance.now();t0perf=tStart;lastVT=-1;running=true;
   $('#stop').hidden=false;$('#stop').textContent='Terminer';startTP();
 };
@@ -3375,12 +3375,23 @@ function startTP(){if(!S.tpOn)return;cancelAnimationFrame(tpRaf);let y=0,last=pe
 function cleanup(keepModels){running=false;recWanted=false;cancelAnimationFrame(raf);cancelAnimationFrame(tpRaf);try{sttObj&&sttObj.abort()}catch(e){}sttObj=null;
   try{rec&&rec.state!=='inactive'&&rec.stop()}catch(e){}rec=null;
   if(stream){stream.getTracks().forEach(t=>t.stop());stream=null;}vid.srcObject=null;tStart=0;lastVT=-1;}
+async function fixMp4(blob,sec){
+  /* MediaRecorder (Safari) écrit un mp4 « fragmenté » sans durée : Safari l’affiche « Diffusion en direct » et fige l’image. On écrit la durée connue dans l’en-tête. */
+  const N=262144,head=new Uint8Array(await blob.slice(0,N).arrayBuffer()),dv=new DataView(head.buffer);
+  const find=n=>{for(let i=4;i<head.length-8;i++)if(head[i]===n.charCodeAt(0)&&head[i+1]===n.charCodeAt(1)&&head[i+2]===n.charCodeAt(2)&&head[i+3]===n.charCodeAt(3))return i;return -1;};
+  const m=find('mvhd');if(m<0)return blob;
+  const ver=head[m+4];let ts,off;
+  if(ver===0){ts=dv.getUint32(m+16);off=m+20;if(dv.getUint32(off)===0||dv.getUint32(off)===0xFFFFFFFF)dv.setUint32(off,Math.round(sec*ts));else return blob;}
+  else{ts=dv.getUint32(m+24);off=m+28;if(dv.getUint32(off)===0&&dv.getUint32(off+4)===0){dv.setUint32(off+4,Math.round(sec*ts));}else return blob;}
+  const e=find('mehd');if(e>0){const ev=head[e+4];if(ev===0&&dv.getUint32(e+8)===0)dv.setUint32(e+8,Math.round(sec*ts));else if(ev===1&&dv.getUint32(e+8)===0&&dv.getUint32(e+12)===0)dv.setUint32(e+12,Math.round(sec*ts));}
+  return new Blob([head,blob.slice(N)],{type:blob.type});
+}
 async function finish(){
   if(!running||!an)return;running=false;const words=transcript.map(o=>({w:o.w,t:o.t})).sort((x,y)=>x.t-y.t);if(!DEMO)words.forEach(o=>an.addWord(o.w,o.t));const r=an.finish(),fr=frames,asp=proc.width/proc.height,fcp=FCP.slice();
   const pcmC=pcmChunks.slice(),sr=aSR;stopPCM();
   let blob=null;
   if(rec&&rec.state!=='inactive'){await new Promise(res=>{rec.onstop=res;setTimeout(res,2500);try{rec.stop()}catch(e){res()}});}
-  if(chunks.length)blob=new Blob(chunks,{type:recMime||'video/webm'});
+  if(chunks.length){blob=new Blob(chunks,{type:recMime||'video/webm'});if(/mp4/.test(blob.type)){try{blob=await fixMp4(blob,r.duree);}catch(e){console.error(e);}}}
   cleanup();
   const c=$('#count');c.textContent='Analyse de la voix…';c.style.fontSize='26px';c.classList.add('on');
   const item={id:Date.now(),date:new Date().toISOString(),r,words,frames:fr,blob,asp,fcp,exo:EXO};
@@ -3457,7 +3468,7 @@ function openReport(it){
   const v=$('#rv'),c=$('#rc'),cx=c.getContext('2d'),url=URL.createObjectURL(it.blob);pb={v,url,raf:0,stopAt:null};v.src=url;
   twoTap($('#delRep'),async()=>{await delItem(it.id);histRender();show('s-hist');});
   $('#saveVid').onclick=async()=>{const ext=/mp4/.test(it.blob.type)?'mp4':'webm',f=new File([it.blob],'agora-gestuelle-'+new Date(it.date).toISOString().slice(0,16).replace(/[:T]/g,'-')+'.'+ext,{type:it.blob.type});try{if(navigator.canShare&&navigator.canShare({files:[f]})){await navigator.share({files:[f]});return;}}catch(e){if(e&&e.name==='AbortError')return;}const a=document.createElement('a');a.href=URL.createObjectURL(f);a.download=f.name;document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove();},3000);};
-  const fixDur=()=>{if(v.duration===Infinity){v.currentTime=1e7;v.ontimeupdate=()=>{v.ontimeupdate=null;v.currentTime=0;};}};v.onloadedmetadata=fixDur;
+  const fixDur=()=>{if(v.duration===Infinity&&!/mp4/.test(it.blob.type)){v.currentTime=1e7;v.ontimeupdate=()=>{v.ontimeupdate=null;v.currentTime=0;};}};v.onloadedmetadata=fixDur;
   const act=t=>[...r.issues,...r.neutral].find(i=>t>=i.t0-0.2&&t<=i.t1+0.2);
   const tick=()=>{pb.raf=requestAnimationFrame(tick);const t=v.currentTime;$('#cur').style.left=(100*t/dur)+'%';
     if(pb.stopAt!=null&&t>=pb.stopAt){v.pause();pb.stopAt=null;}
