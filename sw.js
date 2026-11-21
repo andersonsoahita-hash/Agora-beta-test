@@ -1,5 +1,5 @@
 /* Agora — service worker (généré par build.js, ne pas éditer à la main) */
-const CACHE = 'abeta-a908bfa09c';
+const CACHE = 'abeta-07efab4eaa';
 const FILES = [
  "./",
  "index.html",
@@ -17,7 +17,12 @@ const FILES = [
  "icons/icon-512.png",
  "icons/icon-maskable-512.png",
  "icons/apple-touch-icon.png",
- "icons/mark.svg"
+ "icons/mark.svg",
+ "gestuelle/",
+ "gestuelle/index.html",
+ "gestuelle/engine.js",
+ "gestuelle/analysis.js",
+ "gestuelle/voice.js"
 ];
 self.addEventListener('install', e => {
   self.skipWaiting(); /* prend la main tout de suite : corrige aussi les anciens navigateurs */
@@ -34,6 +39,14 @@ self.addEventListener('fetch', e => {
   if (url.origin !== location.origin) return;
   if (url.pathname.endsWith('/acces.json')) return; /* toujours en direct */
   if (url.pathname.indexOf('/admin/') !== -1) return; /* la page admin n'est pas l'appli : toujours en direct */
+  if (url.pathname.indexOf('/gestuelle/vendor/') !== -1) { /* gros fichiers (modèle de vision) : mis en cache à la première utilisation, conservés entre les mises à jour */
+    e.respondWith(caches.open('avendor').then(c => c.match(req).then(r => r || fetch(req).then(n => { if (n.ok) c.put(req, n.clone()); return n; }))));
+    return;
+  }
+  if (req.mode === 'navigate' && url.pathname.indexOf('/gestuelle/') !== -1) {
+    e.respondWith(caches.match('./gestuelle/index.html', { ignoreSearch: true }).then(r => r || fetch(req)));
+    return;
+  }
   if (req.mode === 'navigate') {
     e.respondWith(caches.match('./index.html', { ignoreSearch: true }).then(r => r || fetch(req)));
     return;
