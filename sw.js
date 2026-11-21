@@ -1,5 +1,5 @@
 /* Agora — service worker (généré par build.js, ne pas éditer à la main) */
-const CACHE = 'abeta-12cef6b445';
+const CACHE = 'abeta-ff24e84169';
 const FILES = [
  "./",
  "index.html",
@@ -17,12 +17,7 @@ const FILES = [
  "icons/icon-512.png",
  "icons/icon-maskable-512.png",
  "icons/apple-touch-icon.png",
- "icons/mark.svg",
- "gestuelle/",
- "gestuelle/index.html",
- "gestuelle/engine.js",
- "gestuelle/analysis.js",
- "gestuelle/voice.js"
+ "icons/mark.svg"
 ];
 self.addEventListener('install', e => {
   self.skipWaiting(); /* prend la main tout de suite : corrige aussi les anciens navigateurs */
