@@ -148,6 +148,8 @@ details.more>.stack{padding-bottom:14px}
 .optrow>span.muted{flex:1}
 .tcol{flex-direction:column;align-items:flex-start;gap:2px}
 
+.exsel{display:flex;align-items:center;gap:10px;flex-wrap:wrap}.exsel b{flex:1;font-size:1.05rem;min-width:0}.exsel .excg{color:var(--accent);font-size:.9rem}
+
 /* ===== Polices hébergées (aucun appel externe) ===== */
 @font-face{font-family:'Dancing Script';font-weight:700;font-style:normal;font-display:swap;src:url(fonts/dancing-script-latin-700-normal.woff2) format('woff2')}
 @font-face{font-family:'DM Sans';font-weight:400;font-style:normal;font-display:swap;src:url(fonts/dm-sans-latin-400-normal.woff2) format('woff2')}

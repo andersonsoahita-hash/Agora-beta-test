@@ -229,8 +229,8 @@ function exListHtml() {
 }
 function vStudio() {
   if (view.sub && view.sub.result) return vResult(view.sub.result);
-  if (!st.screen) st.screen = 'list';
-  if (st.screen === 'list') return '<div class="top"><h1>Studio</h1></div><div class="stack">' + gestHero() + exResume() + '<div class="eyebrow">Choisis un exercice</div>' + exListHtml() + '</div>';
+  if (!st.screen) st.screen = 'ex';
+  if (st.screen === 'list') return '<div class="top tcol"><button class="back" data-act="st-screen" data-v="ex" aria-label="Retour">‹ Retour</button><h1>Exercices</h1></div><div class="stack">' + exResume() + exListHtml() + '</div>';
   if (!st.sujet) newSubject();
   var t = byId(D.exerciseTypes, st.type);
   var curEx = byId(exOrdered(), st.type);
@@ -242,7 +242,7 @@ function vStudio() {
     if (!st.vid) o += '<div class="card stack"><div class="eyebrow">Transcription (pour analyser les mots)</div><textarea id="trIn" placeholder="' + (SR_API && CAN_MIC && S.set && S.set.sr ? 'Elle se remplit pendant l’enregistrement. Tu peux la corriger.' : 'Écris ou colle ici le texte de ce que tu as dit. Sans texte, seule la voix est analysée.') + '">' + esc(st.transcript) + '</textarea></div>';
     return o + '</div>';
   }
-  var h = '<div class="top tcol"><button class="back" data-act="st-screen" data-v="list" aria-label="Exercices">‹ Exercices</button><h1>' + esc(curEx ? curEx.nom : 'Exercice') + '</h1></div><div class="stack">';
+  var h = '<div class="top"><h1>Studio</h1></div><div class="stack">' + gestHero() + '<button class="card tap exsel" data-act="st-screen" data-v="list"><span class="eyebrow">Exercice</span><b>' + esc(curEx ? curEx.nom : 'Choisir') + '</b><span class="excg">Changer ›</span></button>';
   if (st.type === 'lecture') return h + '<div class="card stack"><div class="eyebrow">Avec la caméra</div><p class="muted small" style="margin:0">Lis un discours prêt à l’emploi au prompteur en te filmant : gestes, posture, regard et voix sont analysés.</p><button class="btn" data-act="gest-lec">🎥 Lire un discours avec la caméra</button></div>' + AGDISC.pickerHTML() + '</div>';
   h += '<div class="card stack"><div class="eyebrow">Prépare-toi</div>';
   if (st.type !== 'express') h += '<div class="row">' + D.durations.map(function (d) { return '<button class="chip' + (d === st.dur ? ' on' : '') + '" data-act="st-dur" data-v="' + d + '">' + durLabel(d) + '</button>'; }).join('') + '</div>';
