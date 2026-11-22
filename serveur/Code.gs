@@ -30,6 +30,31 @@ function hash_(mdp, email) {
     .map(function (x) { return ('0' + (x & 255).toString(16)).slice(-2); }).join('');
 }
 
+/* ---------- sécurité : mots de passe renforcés, limites d'essais, saisies nettoyées ----------
+   Les comptes existants ne changent pas : l'ancien format reste accepté, puis est remplacé sans bruit à la prochaine connexion réussie. */
+function sha_(octets) { return Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256, octets); }
+function hex_(oct) { return oct.map(function (x) { return ('0' + (x & 255).toString(16)).slice(-2); }).join(''); }
+function hashV2_(mdp, email, sel) { // sel aléatoire propre à chaque compte + 300 tours : bien plus lent à deviner qu'un simple SHA-256
+  var h = sha_(sel + '|' + email + '|' + mdp);
+  for (var i = 0; i < 300; i++) h = sha_(h.concat(Utilities.newBlob(sel).getBytes()));
+  return 'v2:' + sel + ':' + hex_(h);
+}
+function nouveauHash_(mdp, email) { return hashV2_(mdp, email, alea_(16, 'abcdefghijklmnopqrstuvwxyz0123456789')); }
+function mdpOk_(stocke, mdp, email) { // vrai si le mot de passe correspond, ancien ou nouveau format
+  stocke = String(stocke || ''); if (!stocke) return false;
+  if (stocke.indexOf('v2:') === 0) { var p = stocke.split(':'); return p.length === 3 && hashV2_(mdp, email, p[1]) === stocke; }
+  return stocke === hash_(mdp, email);
+}
+function trop_(cle, max) { return Number(CacheService.getScriptCache().get(cle) || 0) >= max; } // limite atteinte ?
+function compte_(cle, sec) { var c = CacheService.getScriptCache(); c.put(cle, String(Number(c.get(cle) || 0) + 1), sec); }
+function oubli_(cle) { CacheService.getScriptCache().remove(cle); }
+function sur_(x, n) { // texte venu d'un visiteur : longueur limitée, et jamais interprété comme une formule par Google Sheets
+  var t = cut_(x, n).replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f]/g, '');
+  return /^[=+\-@]/.test(t) && !/^[+\-]?[\d\s().\-]+$/.test(t) ? "'" + t : t;
+}
+
+function cut_(x, n) { return String(x == null ? '' : x).slice(0, n); }
+
 /* ---------- menu dans le Sheet ---------- */
 function onOpen() {
   SpreadsheetApp.getUi().createMenu('Agora test')
@@ -92,7 +117,12 @@ function agir_(op, email, date) {
 }
 
 /* ---------- API ---------- */
-function admin_(b) { return b.cle === PropertiesService.getScriptProperties().getProperty('CLE_ADMIN'); }
+function admin_(b) { // clé admin : 8 essais ratés maximum, puis 15 minutes de pause
+  if (trop_('adm_cle', 8)) return false;
+  var k = PropertiesService.getScriptProperties().getProperty('CLE_ADMIN');
+  if (k && b.cle === k) { oubli_('adm_cle'); return true; }
+  compte_('adm_cle', 900); return false;
+}
 function doPost(e) {
   var lock = LockService.getScriptLock(); lock.waitLock(20000);
   try {
@@ -100,11 +130,13 @@ function doPost(e) {
     var em = String(b.email || '').trim().toLowerCase();
 
     if (a === 'demande') {
-      if (!/^\S+@\S+\.\S+$/.test(em) || !b.nom || !b.prenoms) return rep_({ ok: false, erreur: 'Champs manquants' });
+      if (em.length > 120 || !/^[^\s<>"'`\\]+@[^\s<>"'`\\]+\.[^\s<>"'`\\]+$/.test(em) || !b.nom || !b.prenoms) return rep_({ ok: false, erreur: 'Champs manquants' });
+      if (trop_('dem_h', 60) || trop_('dem_' + em, 5)) return rep_({ ok: false, erreur: 'Trop de demandes. Réessaie dans un moment.' });
+      compte_('dem_h', 3600); compte_('dem_' + em, 3600);
       var ex = trouver_(3, em);
       if (ex && etat_(ex.v) !== 'supprimé') return rep_({ ok: true, etat: etat_(ex.v) });
       if (ex) { ex.sh.deleteRow(ex.r); }
-      feuille_('Comptes').appendRow([new Date(), b.nom, b.prenoms, em, b.tel || '', b.age || '', 'en attente', '', '', '', 0, '', '', '']);
+      feuille_('Comptes').appendRow([new Date(), sur_(b.nom, 80), sur_(b.prenoms, 80), em, sur_(b.tel, 30), sur_(b.age, 4), 'en attente', '', '', '', 0, '', '', '']);
       journal_('Nouvelle demande : ' + em);
       return rep_({ ok: true, etat: 'en attente' });
     }
@@ -112,11 +144,13 @@ function doPost(e) {
     if (a === 'activer') { // code à usage unique + création du mot de passe
       var t = trouver_(3, em);
       if (!t || etat_(t.v) !== 'validé') return rep_({ ok: false, erreur: 'Compte non validé.' });
-      if (!t.v[7] || String(t.v[7]).toUpperCase() !== String(b.code || '').trim().toUpperCase()) return rep_({ ok: false, erreur: 'Code invalide ou déjà utilisé.' });
+      if (trop_('act_' + em, 8)) return rep_({ ok: false, erreur: 'Trop d’essais. Réessaie dans 15 minutes.' });
+      if (!t.v[7] || String(t.v[7]).toUpperCase() !== String(b.code || '').trim().toUpperCase()) { compte_('act_' + em, 900); return rep_({ ok: false, erreur: 'Code invalide ou déjà utilisé.' }); }
+      oubli_('act_' + em);
       if (String(b.mdp || '').length < 6) return rep_({ ok: false, erreur: 'Mot de passe : 6 caractères minimum.' });
       var jt = jeton_();
       t.sh.getRange(t.r, 8).setValue(''); // le code est consommé
-      t.sh.getRange(t.r, 12).setValue(b.appareil || ''); t.sh.getRange(t.r, 13).setValue(hash_(b.mdp, em)); t.sh.getRange(t.r, 14).setValue(jt);
+      t.sh.getRange(t.r, 12).setValue(b.appareil || ''); t.sh.getRange(t.r, 13).setValue(nouveauHash_(String(b.mdp), em)); t.sh.getRange(t.r, 14).setValue(jt);
       t.sh.getRange(t.r, 10).setValue(new Date());
       journal_('Compte activé : ' + em);
       return rep_({ ok: true, etat: 'validé', jeton: jt, prenoms: t.v[2] });
@@ -124,7 +158,10 @@ function doPost(e) {
 
     if (a === 'connexion') { // reconnexion avec le mot de passe, même appareil
       var c = trouver_(3, em);
-      if (!c || !c.v[12] || c.v[12] !== hash_(String(b.mdp || ''), em)) return rep_({ ok: false, erreur: 'E-mail ou mot de passe incorrect.' });
+      if (trop_('cx_' + em, 10)) return rep_({ ok: false, erreur: 'Trop d’essais. Réessaie dans 15 minutes.' });
+      if (!c || !mdpOk_(c.v[12], String(b.mdp || ''), em)) { compte_('cx_' + em, 900); return rep_({ ok: false, erreur: 'E-mail ou mot de passe incorrect.' }); }
+      oubli_('cx_' + em);
+      if (String(c.v[12]).indexOf('v2:') !== 0) { try { var nh = nouveauHash_(String(b.mdp || ''), em); if (mdpOk_(nh, String(b.mdp || ''), em)) c.sh.getRange(c.r, 13).setValue(nh); } catch (e2) {} } // mise à niveau silencieuse
       var s = etat_(c.v); if (s !== 'validé') return rep_({ ok: true, etat: s });
       if (c.v[11] && c.v[11] !== b.appareil) return rep_({ ok: true, etat: 'autre appareil' });
       var j2 = jeton_();
@@ -145,13 +182,13 @@ function doPost(e) {
 
     if (a === 'avis') {
       var w = trouver_(3, em); if (!w || etat_(w.v) !== 'validé' || w.v[13] !== b.jeton) return rep_({ ok: false });
-      feuille_('Avis').appendRow([new Date(), em, b.ecran || '', String(b.texte || '').slice(0, 2000)]);
+      feuille_('Avis').appendRow([new Date(), em, sur_(b.ecran, 80), sur_(b.texte, 2000)]);
       return rep_({ ok: true });
     }
 
     if (a === 'usage') { // le testeur envoie les fonctions qu'il a utilisées
       var q = trouver_(3, em); if (!q || etat_(q.v) !== 'validé' || q.v[13] !== b.jeton) return rep_({ ok: false });
-      var evs = (b.events || []).slice(0, 300).map(function (x) { return [new Date(+x.t || Date.now()), em, String(x.e || '').slice(0, 80)]; });
+      var evs = (b.events || []).slice(0, 300).map(function (x) { return [new Date(+x.t || Date.now()), em, sur_(x.e, 80)]; });
       if (evs.length) { var su2 = feuille_('Usage'); su2.getRange(su2.getLastRow() + 1, 1, evs.length, 3).setValues(evs); }
       return rep_({ ok: true });
     }
