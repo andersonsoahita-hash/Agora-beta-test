@@ -1,5 +1,5 @@
 /* Agora — service worker (généré par build.js, ne pas éditer à la main) */
-const CACHE = 'abeta-86dd71de0a';
+const CACHE = 'abeta-8b3895133c';
 const FILES = [
  "./",
  "index.html",
